@@ -1,4 +1,5 @@
 <script setup>
+import { courseUrl } from '../lib/campuses.js'
 import { computed } from 'vue'
 import { state, courseList, getStatus, setCourseStatus, isSatisfied } from '../store.js'
 import { badgeClass, courseYear, prereqTokens } from '../lib/courses.js'
@@ -95,7 +96,7 @@ function onPreviewEnter(e) {
             </div>
           </td>
           <td class="c-course">
-            <span class="c-name-wrap" @mouseenter="onPreviewEnter"><a class="code-link" :href="'https://utm.calendar.utoronto.ca/course/' + row.code.toLowerCase()" target="_blank">{{ row.code }}</a><span
+            <span class="c-name-wrap" @mouseenter="onPreviewEnter"><a class="code-link" :href="courseUrl(row.code)" target="_blank">{{ row.code }}</a><span
               v-if="row.meta" class="course-name-preview"><span class="cn-name">{{ row.meta.name }}</span><span v-if="row.meta.description" class="cn-desc">{{ row.meta.description }}</span></span></span><span
               v-if="row.exclConflicts.length" class="excl-flag" tabindex="0" role="note"
               :aria-label="'Exclusion conflict — you can only count one of ' + row.code + ' and ' + row.exclConflicts.join(', ')"

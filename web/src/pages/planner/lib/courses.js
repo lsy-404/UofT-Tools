@@ -1,12 +1,9 @@
+import { levelOf } from './campuses.js'
 // Pure helpers for program/course logic — no DOM, no Vue. Unit-testable.
 
-export const COURSE_RE = /([A-Z]{2,4}\d{3}[HY]\d)/g
+export const COURSE_RE = /((?:[A-Z]{2,4}\d{3}|[A-Z]{3}[A-D]\d{2})[HY][135])/g
 
-export function courseYear(code) {
-  const m = code.match(/\d{3}/)
-  if (!m) return null
-  return Math.floor(parseInt(m[0]) / 100)
-}
+export function courseYear(code) { return levelOf(code) || null }
 
 // Credit weight of a course code: Y courses count 1.0, H (half) courses 0.5.
 export function courseCredit(code) {
@@ -192,7 +189,7 @@ export function computeSuggestions(selectedPrograms, programs) {
 export function prereqTokens(text, getStatus) {
   const tokens = []
   let last = 0
-  const re = /([A-Z]{2,4}\d{3}[HY]\d)/g
+  const re = /((?:[A-Z]{2,4}\d{3}|[A-Z]{3}[A-D]\d{2})[HY][135])/g
   let m
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) tokens.push({ course: false, text: text.slice(last, m.index) })

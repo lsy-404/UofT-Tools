@@ -1,5 +1,8 @@
 # Node / Vite
 node_modules/
+.pnpm-store/
+*-refresh.log
+pnpm-workspace.yaml
 dist/
 
 # Python virtual environment
@@ -20,6 +23,7 @@ debug_*.html
 # Re-include unit tests (a machine-level global gitignore excludes /test/)
 !/test/
 !/test/**
+/test/__pycache__/
 
 # OS & editor
 .DS_Store

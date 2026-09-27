@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { CAMPUSES, courseCampus } from '../lib/campuses.js'
 import { state, addExtraCourse, removeExtraCourse, isValidCourseCode, getStatus, lockedExtraCourses } from '../store.js'
 
 const props = defineProps({
@@ -21,13 +22,16 @@ const lockedList = computed(() => (isDefault.value ? lockedExtraCourses.value : 
 const removableList = computed(() => (props.items ?? state.extraCourses).filter(c => !lockedSet.value.has(c)))
 
 const query = ref('')
+const browsing = ref(false)
+const searchCampus = ref('all')
 
 const results = computed(() => {
   const q = query.value.trim().toLowerCase()
-  if (q.length < 2 || !state.courses) return []
+  if (!state.courses) return []
   const out = []
   for (const code in state.courses) {
     const c = state.courses[code]
+    if (searchCampus.value !== 'all' && courseCampus(code) !== searchCampus.value) continue
     if (code.toLowerCase().includes(q) || (c.name || '').toLowerCase().includes(q)) {
       out.push({ code, name: c.name })
       if (out.length >= 8) break
@@ -43,17 +47,19 @@ const manualCode = computed(() => {
 })
 
 function add(code) {
-  if (doAdd(code)) query.value = ''
+  if (doAdd(code)) { query.value = ''; browsing.value = false }
 }
 </script>
 
 <template>
   <div class="course-picker">
     <label class="cp-label">{{ label }}</label>
+    <label>Browse campus <select v-model="searchCampus" aria-label="Course campus" @change="browsing = true"><option value="all">All campuses</option><option v-for="(c, k) in CAMPUSES" :key="k" :value="k">{{ c.name }}</option></select></label>
     <div class="cp-row">
       <div class="cp-input-wrap">
-        <input v-model="query" class="cp-input" type="text" :placeholder="placeholder">
-        <div v-if="results.length || manualCode" class="cp-results">
+        <input v-model="query" class="cp-input" type="text" :placeholder="placeholder" @focus="browsing = true" @keydown.esc="browsing = false">
+        <div v-if="browsing && (results.length || manualCode)" class="cp-results">
+          <button class="cp-item" @click="browsing = false">Close results</button>
           <button v-for="r in results" :key="r.code" class="cp-item" @click="add(r.code)">
             <span class="cp-code">{{ r.code }}</span>
             <span class="cp-name">{{ r.name }}</span>

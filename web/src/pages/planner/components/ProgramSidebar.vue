@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import {
-  state, filteredSections, popupSection, selectSection, toggleProgram,
+  state, filteredSections, popupSection, selectSection, toggleProgram, closePopup,
 } from '../store.js'
 import { badgeClass } from '../lib/courses.js'
 import SuggestionBar from './SuggestionBar.vue'
@@ -47,7 +47,10 @@ const isSelected = (id) => state.selectedPrograms.some(p => p.id === id)
           :key="p.id"
           class="prog-popup-item"
           :class="{ selected: isSelected(p.id) }"
-          @click="toggleProgram(p.id)"
+          role="button"
+          tabindex="0"
+          @click="toggleProgram(p.id); closePopup()"
+          @keydown.enter="toggleProgram(p.id); closePopup()"
         >
           <span>{{ p.name }} <span style="font-size:11px;color:var(--gray-600)">{{ p.code || '' }}</span></span>
           <span class="badge" :class="badgeClass(p.type)">{{ p.type }}</span>

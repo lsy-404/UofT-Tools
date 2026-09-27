@@ -1,109 +1,14 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { state, legality, degreeProgress, degreeProgressActual, degreeBreakdown, programCounts, activePrograms, toggleProgram, toggleIntention, applyImported } from '../store.js'
+import { state, legality, degreeProgress, degreeBreakdown, campusConfig, programCounts, toggleProgram, toggleIntention, applyImported } from '../store.js'
 import { chipClass } from '../lib/courses.js'
+import { programUrl } from '../lib/campuses.js'
 import { exportPlanner, importPlanner } from '../lib/dataio.js'
 import CoursePicker from './CoursePicker.vue'
-
-const shortName = (p) => p.name.split(' - ')[0] || p.name
-const chipTitle = (p) => p.intention ? 'Intention (planning)' : p.type + ' — ' + (p.code || '')
-
-const comboValid = computed(() => activePrograms.value.length > 0 && legality.value.messages.length === 0)
-
-const degreeTarget = ref('honours')
-
-// Projected graduation outlook from the marked courses + valid program combination.
-const outlookDone = computed(() => {
-  const b = degreeBreakdown.value.done
-  const valid = activePrograms.value.length > 0 && legality.value.messages.length === 0
-  const distOk = b.satisfied
-  return {
-    honours: valid && distOk && b.total >= 20 && b.upper2 >= 13 && b.upper >= 6,
-    ordinary: valid && distOk && b.total >= 15,
-  }
-})
-const outlookNow = computed(() => {
-  const dp = degreeProgressActual.value
-  const valid = activePrograms.value.length > 0 && legality.value.messages.length === 0
-  const distOk = dp.satisfied
-  return {
-    honours: valid && distOk && dp.total >= 20 && dp.upper2 >= 13 && dp.upper >= 6,
-    ordinary: valid && distOk && dp.total >= 15,
-  }
-})
-const outlookPlan = computed(() => {
-  const dp = degreeProgress.value
-  const valid = activePrograms.value.length > 0 && legality.value.messages.length === 0
-  const distOk = dp.satisfied
-  return {
-    honours: valid && distOk && dp.total >= 20 && dp.upper2 >= 13 && dp.upper >= 6,
-    ordinary: valid && distOk && dp.total >= 15,
-  }
-})
-
-const outlookBorder = computed(() => {
-  const t = degreeTarget.value
-  if (outlookDone.value[t]) return 'bd-done'
-  if (outlookNow.value[t]) return 'bd-taking'
-  if (outlookPlan.value[t]) return 'bd-planned'
-  return ''
-})
-
-const nowText = computed(() => {
-  if (outlookNow.value[degreeTarget.value]) return degreeTarget.value === 'honours' ? 'Honours (HBA/HBSc)' : 'Ordinary'
-  return 'Not enough'
-})
-const planText = computed(() => {
-  if (outlookPlan.value[degreeTarget.value]) return degreeTarget.value === 'honours' ? 'Honours (HBA/HBSc)' : 'Ordinary'
-  return 'Not enough'
-})
-
-const fmt = (n) => n.toFixed(1)
-
-const distBorder = computed(() => {
-  const b = degreeBreakdown.value
-  const sat = (g) => g.cats.Science >= 1 && g.cats['Social Science'] >= 1 && g.cats.Humanities >= 1
-  if (sat(b.done)) return 'bd-done'
-  const dtCats = {
-    Science: b.done.cats.Science + b.taking.cats.Science,
-    'Social Science': b.done.cats['Social Science'] + b.taking.cats['Social Science'],
-    Humanities: b.done.cats.Humanities + b.taking.cats.Humanities,
-  }
-  if (dtCats.Science >= 1 && dtCats['Social Science'] >= 1 && dtCats.Humanities >= 1) return 'bd-taking'
-  if (sat(b.all)) return 'bd-planned'
-  return ''
-})
-
-const degreeBorder = computed(() => {
-  const b = degreeBreakdown.value
-  if (degreeTarget.value === 'honours') {
-    const met = (g) => g.total >= 20 && g.upper2 >= 13 && g.upper >= 6
-    if (met(b.done)) return 'bd-done'
-    const dtTotal = b.done.total + b.taking.total
-    const dtUpper2 = b.done.upper2 + b.taking.upper2
-    const dtUpper = b.done.upper + b.taking.upper
-    if (dtTotal >= 20 && dtUpper2 >= 13 && dtUpper >= 6) return 'bd-taking'
-    if (met(b.all)) return 'bd-planned'
-  } else {
-    if (b.done.total >= 15) return 'bd-done'
-    if (b.done.total + b.taking.total >= 15) return 'bd-taking'
-    if (b.all.total >= 15) return 'bd-planned'
-  }
-  return ''
-})
-
-const degreeMet = computed(() => {
-  const dp = degreeProgress.value
-  if (degreeTarget.value === 'honours') return dp.total >= 20 && dp.upper2 >= 13 && dp.upper >= 6
-  return dp.total >= 15
-})
-
-function onExport() {
-  exportPlanner(state.courseStatus, state.selectedPrograms)
-}
-function onImport() {
-  importPlanner(applyImported)
-}
+const shortName = p => p.name.split(' - ')[0] || p.name
+const chipTitle = p => p.intention ? 'Intention (planning)' : p.type + ' — ' + (p.code || '')
+const fmt = n => (n || 0).toFixed(1)
+function onExport() { exportPlanner(state.courseStatus, state.selectedPrograms, state.campus, state.extraCourses) }
+function onImport() { importPlanner(applyImported) }
 </script>
 
 <template>
@@ -129,7 +34,7 @@ function onImport() {
         <a
           class="code-link"
           style="font-size:10px;opacity:.7"
-          :href="'https://utm.calendar.utoronto.ca/program/' + p.id"
+          :href="programUrl(p, state.campus)"
           target="_blank"
           title="Open program page"
           @click="$event.stopPropagation()"
@@ -138,50 +43,38 @@ function onImport() {
       </div>
     </div>
 
-    <div class="summary" title="Counts courses you marked Plan / Taking / Done">
-      <!-- 1. Programs (counts) -->
-      <div class="sum-block" :class="{ done: comboValid }">
-        <div class="sum-head">Programs</div>
-        <div class="sum-line">Specialist: <b>{{ programCounts.specialist }}</b></div>
-        <div class="sum-line">Major: <b>{{ programCounts.major }}</b></div>
-        <div class="sum-line">Minor: <b>{{ programCounts.minor }}</b></div>
-        <div v-for="(m, i) in legality.messages" :key="i" class="sum-warn">{{ m }}</div>
-      </div>
-
-      <!-- 2. Distribution (diversity) -->
-      <div class="sum-block" :class="[degreeProgress.satisfied ? 'done' : '', distBorder]">
-        <div class="sum-head">Distribution <span class="sum-note">(≥1.0 each)</span></div>
-        <div class="sum-line"><span :class="{ met: degreeProgress.cats.Science >= 1 }">Science: <span class="seg-planned">{{ fmt(degreeBreakdown.planned.cats.Science) }}</span>/<span class="seg-taking">{{ fmt(degreeBreakdown.taking.cats.Science) }}</span>/<span class="seg-done">{{ fmt(degreeBreakdown.done.cats.Science) }}</span>/<span class="seg-req">1.0</span></span></div>
-        <div class="sum-line"><span :class="{ met: degreeProgress.cats['Social Science'] >= 1 }">Social Science: <span class="seg-planned">{{ fmt(degreeBreakdown.planned.cats['Social Science']) }}</span>/<span class="seg-taking">{{ fmt(degreeBreakdown.taking.cats['Social Science']) }}</span>/<span class="seg-done">{{ fmt(degreeBreakdown.done.cats['Social Science']) }}</span>/<span class="seg-req">1.0</span></span></div>
-        <div class="sum-line"><span :class="{ met: degreeProgress.cats.Humanities >= 1 }">Humanities: <span class="seg-planned">{{ fmt(degreeBreakdown.planned.cats.Humanities) }}</span>/<span class="seg-taking">{{ fmt(degreeBreakdown.taking.cats.Humanities) }}</span>/<span class="seg-done">{{ fmt(degreeBreakdown.done.cats.Humanities) }}</span>/<span class="seg-req">1.0</span></span></div>
-      </div>
-
-      <!-- 3. Degree (Honours/Ordinary toggle) -->
-      <div class="sum-block" :class="[degreeMet ? 'done' : '', degreeBorder]">
-        <div class="sum-head">Degree
-          <span class="deg-toggle">
-            <button class="deg-btn" :class="{ active: degreeTarget === 'honours' }" @click="degreeTarget = 'honours'">Honours</button>
-            <button class="deg-btn" :class="{ active: degreeTarget === 'ordinary' }" @click="degreeTarget = 'ordinary'">Ordinary</button>
-          </span>
+    <section aria-label="Degree progress">
+      <h3>{{ campusConfig.name }} HBA / HBSc progress · 2026–2027 rules</h3>
+      <p>Planning aid only. Earlier entry years, BCom, BBA, BCS, professional and double degrees require their own calendar review.</p>
+      <p>Completed credits count toward the checks below. Taking and planned credits are projections, not earned credits.</p>
+      <div class="summary">
+        <div class="sum-block">
+          <div class="sum-head">Program combination</div>
+          <div>Specialist: {{ programCounts.specialist }} · Major: {{ programCounts.major }} · Minor: {{ programCounts.minor }}</div>
+          <div v-for="message in legality.messages" :key="message" class="sum-warn">{{ message }}</div>
+          <div>{{ legality.success }}</div>
         </div>
-        <template v-if="degreeTarget === 'honours'">
-          <div class="sum-line"><span :class="{ met: degreeProgress.total >= 20 }">Total: <span class="seg-planned">{{ fmt(degreeBreakdown.planned.total) }}</span>/<span class="seg-taking">{{ fmt(degreeBreakdown.taking.total) }}</span>/<span class="seg-done">{{ fmt(degreeBreakdown.done.total) }}</span>/<span class="seg-req">20.0</span></span></div>
-          <div class="sum-line"><span :class="{ met: degreeProgress.upper2 >= 13 }">200+ level: <span class="seg-planned">{{ fmt(degreeBreakdown.planned.upper2) }}</span>/<span class="seg-taking">{{ fmt(degreeBreakdown.taking.upper2) }}</span>/<span class="seg-done">{{ fmt(degreeBreakdown.done.upper2) }}</span>/<span class="seg-req">13.0</span></span></div>
-          <div class="sum-line"><span :class="{ met: degreeProgress.upper >= 6 }">300/400 level: <span class="seg-planned">{{ fmt(degreeBreakdown.planned.upper) }}</span>/<span class="seg-taking">{{ fmt(degreeBreakdown.taking.upper) }}</span>/<span class="seg-done">{{ fmt(degreeBreakdown.done.upper) }}</span>/<span class="seg-req">6.0</span></span></div>
-        </template>
-        <template v-else>
-          <div class="sum-line"><span :class="{ met: degreeProgress.total >= 15 }">Total: <span class="seg-planned">{{ fmt(degreeBreakdown.planned.total) }}</span>/<span class="seg-taking">{{ fmt(degreeBreakdown.taking.total) }}</span>/<span class="seg-done">{{ fmt(degreeBreakdown.done.total) }}</span>/<span class="seg-req">15.0</span></span></div>
-        </template>
+        <div class="sum-block" v-for="[key, label, required] in campusConfig.checks" :key="key">
+          <div class="sum-head">{{ label }}</div>
+          <div>Done: <b>{{ fmt(degreeBreakdown.done[key]) }} / {{ fmt(required) }}</b></div>
+          <div>Taking: {{ fmt(degreeBreakdown.taking[key]) }} · Planned: {{ fmt(degreeBreakdown.planned[key]) }}</div>
+          <div>Projected total: {{ fmt(degreeProgress[key]) }}</div>
+        </div>
       </div>
-
-      <!-- 4. Projected outcome -->
-      <div class="sum-block outlook" :class="outlookBorder">
-        <div class="sum-head">Projected Outcome</div>
-        <div class="sum-line">Current: <b>{{ nowText }}</b></div>
-        <div class="sum-line">Projected: <b>{{ planText }}</b></div>
-        <div class="sum-disclaimer">Estimate only — other requirements (cGPA, etc.) not checked.</div>
-      </div>
-    </div>
+      <details open>
+        <summary>{{ state.campus === 'utm' ? 'Distribution' : 'Breadth' }} progress</summary>
+        <p v-if="state.campus === 'stg'">1.0 credit in 4 categories, or 1.0 in 3 and 0.5 in both remaining categories.</p>
+        <p v-else>At least {{ campusConfig.breadthMin.toFixed(1) }} credit in each category.</p>
+        <div v-for="category in campusConfig.categories" :key="category">
+          {{ category }} — Done: {{ fmt(degreeBreakdown.done.cats[category]) }} · Taking: {{ fmt(degreeBreakdown.taking.cats[category]) }} · Planned: {{ fmt(degreeBreakdown.planned.cats[category]) }}
+        </div>
+        <p>Completed breadth check: {{ degreeBreakdown.done.satisfied ? 'Recorded categories meet the threshold' : 'Not yet met' }}.</p>
+      </details>
+      <p v-if="degreeProgress.pending.length" role="status">Pending manual verification — excluded from automatic degree checks: {{ degreeProgress.pending.join(', ') }}. Cross-campus courses are not automatically equivalent, even when their numbers match.</p>
+      <p v-if="degreeProgress.pendingBreadth.length">Distribution / breadth not automatically allocated: {{ degreeProgress.pendingBreadth.join(', ') }}. Check missing or multiple designations with your registrar.</p>
+      <p>Graduation eligibility is not determined. Program completion, grades/CGPA, admission cohort, exclusions, transfer credits, CR/NCR restrictions, residency and distinct-credit requirements need official review.</p>
+      <a :href="campusConfig.degreeSource" target="_blank" rel="noopener">Official degree requirements</a>
+    </section>
 
     <CoursePicker />
   </div>

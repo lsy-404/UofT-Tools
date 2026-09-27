@@ -50,3 +50,7 @@ npm test                          # Vitest unit + component tests
 ## Disclaimer
 
 This project is **not** affiliated with, sponsored by, or endorsed by the University of Toronto or any of its campuses, staff, or departments. All tools are provided as-is for student convenience. Always verify official information through the University of Toronto's official registrar and administrative websites.
+
+## Three-campus planner
+
+The planner supports UTM and selected UTSG Arts & Science / UTSC programs, with separate home-campus profiles and full ERIN/ARTSC/SCAR timetable snapshots. See [coverage, official sources and maintenance](docs/planner-coverage.md) for the exact supported scope and limitations. Degree progress is a partial check, not certification of graduation. Cross-campus course recognition requires manual verification.

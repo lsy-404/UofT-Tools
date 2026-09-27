@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import router from '../web/src/router.js'
+
+window.scrollTo = vi.fn()
 
 describe('router resolves without infinite redirect', () => {
   it('navigates to core routes', async () => {

@@ -1,4 +1,5 @@
 <script setup>
+import { courseUrl } from '../lib/campuses.js'
 import { computed } from 'vue'
 import { activePrograms, getStatus, setCourseStatus, isSatisfied, degreeProgress } from '../store.js'
 import { badgeClass, prereqTokens, reqLineMet, courseCredit } from '../lib/courses.js'
@@ -33,7 +34,7 @@ const programsModel = computed(() => activePrograms.value.map(prog => {
     if (!blocks.length) continue
     kinds.push({
       label,
-      blocks: blocks.map(b => ({ ...b, met: reqLineMet(b, isSatisfied, ctx), tokens: tokenizeBlock(b) })),
+      blocks: blocks.map(b => ({ ...b, met: !b.manualReview && reqLineMet(b, isSatisfied, ctx), tokens: tokenizeBlock(b) })),
     })
   }
   return { prog, hasReqs: kinds.length > 0, kinds }
@@ -48,6 +49,7 @@ const programsModel = computed(() => activePrograms.value.map(prog => {
 
     <template v-else>
       <div v-for="entry in programsModel" :key="entry.prog.id" class="req-prog-block">
+        <p>Official requirement reference. Marks show recorded completed home-campus courses only; grades, alternatives, credit pools and permissions require manual verification.</p>
         <div class="req-prog-header">
           {{ entry.prog.name }} <span class="badge" :class="badgeClass(entry.prog.type)">{{ entry.prog.type }}</span>
         </div>
@@ -67,8 +69,8 @@ const programsModel = computed(() => activePrograms.value.map(prog => {
 
               <!-- Requirement line with course codes -->
               <div v-else class="req-block" :class="{ indent: b.indent, met: b.met }">
-                <span class="req-status">{{ b.met ? '✓' : '○' }}</span>
-                <span class="req-text"><span v-if="b.lead" class="req-lead">{{ b.lead }} </span><template v-for="(t, ti) in b.tokens" :key="ti"><span v-if="t.course" class="prc-wrap"><span class="rc" :class="t.cls" title="Click to cycle: none → plan → taking → done" @click="reqToggle(t.code)">{{ t.code }}</span><a class="code-link" style="font-size:9px" :href="'https://utm.calendar.utoronto.ca/course/' + t.code.toLowerCase()" target="_blank" title="Open course page" @click="$event.stopPropagation()">↗</a></span><template v-else>{{ t.text }}</template></template></span>
+                <span class="req-status">{{ b.manualReview ? '?' : b.met ? '✓' : '○' }}</span>
+                <span class="req-text"><span v-if="b.lead" class="req-lead">{{ b.lead }} </span><template v-for="(t, ti) in b.tokens" :key="ti"><span v-if="t.course" class="prc-wrap"><span class="rc" :class="t.cls" title="Click to cycle: none → plan → taking → done" @click="reqToggle(t.code)">{{ t.code }}</span><a class="code-link" style="font-size:9px" :href="courseUrl(t.code)" target="_blank" title="Open course page" @click="$event.stopPropagation()">↗</a></span><template v-else>{{ t.text }}</template></template></span>
               </div>
             </template>
           </template>

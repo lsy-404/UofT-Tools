@@ -14,9 +14,9 @@ const tools = [
     tag: 'Live',
     tagClass: 'tag-live',
     icon: '\u{1F4CB}',
-    title: 'UTM Course Planner',
-    desc: 'Browse all UTM programs, see required courses, plan your degree, and build a weekly schedule with TTB timetable data.',
-    pills: ['UTM'],
+    title: 'UofT Course Planner',
+    desc: 'Plan courses and schedules at UTM, UTSC and UTSG Arts & Science. Check supported programs, official requirements and campus-specific degree progress.',
+    pills: ['UTM', 'UTSC', 'UTSG Arts & Science'],
   },
   {
     to: null,

@@ -11,6 +11,7 @@ import json
 import re
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 from bs4 import BeautifulSoup
@@ -32,7 +33,7 @@ def collect_codes_from_programs() -> set[str]:
     prog_file = DATA_DIR / "utm-programs.json"
     if not prog_file.exists():
         raise FileNotFoundError("programs.json not found — run scrape_utm_programs.py first")
-    data = json.loads(prog_file.read_text())
+    data = json.loads(prog_file.read_text(encoding='utf-8'))
     codes: set[str] = set()
     for sec in data["sections"]:
         for prog in sec["programs"]:
@@ -93,6 +94,10 @@ def fetch_course(code: str) -> dict | None:
     distrib      = field_text(article, "field-distribution-requirements")
 
     return {
+        "campus": "utm",
+        "source": url,
+        "calendarYear": "2026-2027",
+        "retrievedAt": datetime.now(timezone.utc).isoformat(),
         "code":          code,
         "name":          name,
         "description":   desc,
@@ -124,6 +129,8 @@ def main() -> None:
         time.sleep(0.15)
 
     dest = DATA_DIR / "utm-courses.json"
+    if len(results) < len(codes) * 0.9:
+        raise ValueError('Too many unavailable courses; preserving previous UTM snapshot')
     write_json(dest, results)
     print(f"\nDone → {dest} ({len(results)} courses)")
 

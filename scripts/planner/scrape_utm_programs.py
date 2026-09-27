@@ -6,6 +6,7 @@ Outputs: public/planner/data/programs.json
 import re
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 from bs4 import BeautifulSoup, NavigableString
@@ -383,10 +384,16 @@ def main() -> None:
         time.sleep(0.2)
 
     output = {
+        "campus": "utm",
+        "calendarYear": "2026-2027",
+        "retrievedAt": datetime.now(timezone.utc).isoformat(),
+        "source": CALENDAR_URL,
         "sections": result_sections,
         "totalPrograms": sum(len(s["programs"]) for s in result_sections),
     }
     dest = OUTPUT_DIR / "utm-programs.json"
+    if output['totalPrograms'] < 180:
+        raise ValueError('Unexpected catalog shrinkage; preserving previous UTM snapshot')
     write_json(dest, output)
     print(f"\nDone → {dest} ({output['totalPrograms']} programs)")
 
