@@ -67,3 +67,11 @@ Before changing the academic year, manually review the official calendars, updat
 Existing `utm_*` local-storage keys and version-2 UTM exports are retained. UTSG and UTSC have separate profile keys. Version-3 exports include campus and extra courses; importing into the wrong home campus is rejected with a switch instruction. Marked courses remain visible after their program is removed.
 
 For review, check the limited new-campus program list, conservative cross-campus treatment, 2026-only rule scope, co-op/manual requirements, UTM saved-state migration and representative course schedules. No deployment or merge is part of this change.
+
+### Verification on 2026-09-27
+
+- Exact `package-lock.json` installation: 99 JavaScript tests and 5 Python scraper tests passed; Vite production build passed.
+- Browser checks: UTM ERMAJ1688 / CSC108H5, Arts & Science ASMAJ1689 / CSC148H1, and UTSC SCMAJ1688 / CSCA08H3 each generated Fall 2026 schedule alternatives from the refreshed snapshots.
+- UTSC completed CSCA08H3 contributed 0.5 credit and 0.5 Quantitative Reasoning breadth; switching it to Taking made it available for scheduling. A UTM course added to the Arts & Science plan remained pending manual verification.
+- Regression coverage includes timetable conflicts, commute buffers, status separation, per-campus persistence, legacy UTM migration, missing offerings, breadth rules and incomplete scraper responses.
+- Dependency audit reported 14 inherited findings (3 moderate, 10 high, 1 critical); dependency upgrades were not included in this feature change.
