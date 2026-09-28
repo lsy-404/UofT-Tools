@@ -51,7 +51,7 @@ const sections = [
       },
       {
         q: 'Is the project free to use?',
-        a: `<p>Yes, entirely. There are no accounts, no tracking, and no fees. The project is open-source under the MIT licence.</p>`,
+        a: `<p>There are no accounts or fees to use this hosted site. The project&rsquo;s original source code is licensed under the <a href="https://github.com/lsy-404/UofT-Tools/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a>, which permits commercial use under its terms. University academic information and planning suggestions are provided for personal reference and are separate from the project source code license.</p>`,
       },
     ],
   },

@@ -56,3 +56,11 @@ This project is **not** affiliated with, sponsored by, or endorsed by the Univer
 The planner retains UTM and imports every entry in the UTSG Arts & Science (including Rotman) and UTSC official program-search catalogs, with separate home-campus profiles and full ERIN/ARTSC/SCAR timetable snapshots. Course roles distinguish required courses, alternatives, elective pools and optional recommendations; course levels are separate from recommended study years. See [coverage, official sources and maintenance](docs/planner-coverage.md) for scope, inventory reconciliation and limitations. Degree progress is a partial check, not certification of graduation. Cross-campus course recognition requires manual verification.
 
 The Planner has three sections: choose a home campus and programs, build a course plan, then select timetable sections and preview schedules.
+
+## License
+
+Copyright (c) 2026 contributors to UofT-Tools.
+
+The project's original source code, including the code used to build and run the tools, is licensed under the [MIT License](LICENSE) (`MIT`). See [`LICENSE`](LICENSE) for the complete terms.
+
+University of Toronto academic information and other source material are not covered by this license. In particular, the calendar feeds and the course, program, and timetable data in `data/` are derived from University of Toronto websites. This project does not claim ownership of those materials or grant rights to them. Academic information and planning suggestions are intended for personal reference, not as official university advice or services. These source materials are separate from the project's original source code license; this intended-use statement applies to those materials and suggestions only. Dependencies remain subject to their own licenses.

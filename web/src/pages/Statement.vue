@@ -39,9 +39,9 @@ const sections = [
       <p>If you are a minor under the applicable age of majority, you and your parent or legal guardian must read and accept this Agreement together. Your continued use of the Site constitutes acceptance of this Agreement as amended from time to time.</p>
 
       <h2 id="ip">2. Intellectual Property</h2>
-      <p>The Site&rsquo;s source code is open source and publicly available on GitHub; you may use it under the terms stated in that repository.</p>
-      <p>Academic information presented by the tools &mdash; including course, program, timetable, and calendar data &mdash; originates from the University of Toronto and remains the property of the University. It is reproduced here for students&rsquo; convenience and reference only, and may be incomplete or out of date.</p>
-      <p>The Site name, layout, and original written content are the work of the maintainer. You may not present the Site or its content as an official University of Toronto product. The Site reserves all rights not expressly granted to you.</p>
+      <p>The Site&rsquo;s original source code is open source and publicly available on GitHub under the MIT License; you may use it under the terms in the repository&rsquo;s <a href="https://github.com/lsy-404/UofT-Tools/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">LICENSE</a>.</p>
+      <p>Academic information presented by the tools &mdash; including course, program, timetable, and calendar data &mdash; originates from University of Toronto websites. It is provided for students&rsquo; convenience and reference only, may be incomplete or out of date, and is separate from the project source code license. This project does not claim ownership of, or grant rights to, that material.</p>
+      <p>You may not present the Site or its content as an official University of Toronto product. The Site reserves all rights not expressly granted to you.</p>
 
       <h2 id="data">3. Data on Your Device &amp; Privacy</h2>
       <p>This Site uses cookie-like technologies (such as your browser&rsquo;s local storage) to keep a persistent cache on your device. This lets the tools remember your previous choices &mdash; selected programs, course statuses, schedule preferences, and similar settings &mdash; so they are available the next time you visit. This information stays in your browser on your device, and you can clear it at any time through your browser&rsquo;s settings.</p>
@@ -59,7 +59,7 @@ const sections = [
         <li>interfere with, damage, or alter the operation of the Site or its content; or</li>
         <li>misrepresent the Site, or any output you obtain from it, as an official University of Toronto source.</li>
       </ul>
-      <p>The tools are provided for your personal, non-commercial reference. The Site may suspend or terminate access for any user who violates this Agreement.</p>
+      <p>Academic information and planning suggestions provided by the tools are for personal reference and are not official University of Toronto advice or services. This describes their intended use only; it does not limit any rights to use, modify, or redistribute the original source code under the MIT License. The Site may suspend or terminate access for any user who violates this Agreement.</p>
 
       <h2 id="disclaimer">6. Disclaimer &amp; No Warranty</h2>
       <p>This service is provided <strong>AS IS</strong> with no warranty of any kind, express or implied, including accuracy, completeness, or timeliness. It is intended for supplementary reference only and should not be the sole basis for academic or financial planning.</p>
