@@ -16,20 +16,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from common.http import PLANNER_UA, make_session
 from common.io import write_json
 from common.paths import PLANNER_DATA_DIR as OUTPUT_DIR
+from requirements import blocks as structured_blocks
+import scrape_campus_catalogs as calendar_pages
 
 CALENDAR_URL = "https://utm.calendar.utoronto.ca"
 SECTION_URL  = f"{CALENDAR_URL}/section/"
 
-COURSE_RE    = re.compile(r"\b([A-Z]{2,4}\s*\d{3}\s*[YH]\s*[0-9])\b", re.IGNORECASE)
+COURSE_RE    = re.compile(r"\b((?:[A-Z]{2,4}\s*\d{3}|[A-Z]{3}\s*[A-D]\s*\d{2})\s*[YH]\s*[0-9])\b", re.IGNORECASE)
 PROGRAM_TYPE_RE = re.compile(r"\b(Specialist|Major|Minor|Certificate)\b", re.IGNORECASE)
 
 SESSION = make_session(PLANNER_UA, {"Accept": "text/html,application/xhtml+xml"})
 
 
 def fetch_html(url: str) -> BeautifulSoup:
-    resp = SESSION.get(url, timeout=15)
-    resp.raise_for_status()
-    return BeautifulSoup(resp.text, "html.parser")
+    calendar_pages.RESUME = '--resume' in sys.argv
+    return calendar_pages.page(url)
 
 
 def get_sections() -> list[dict]:
@@ -94,6 +95,7 @@ def parse_program(path: str) -> dict | None:
 
     # Extract structured requirement groups
     requirementGroups = _parse_requirement_groups(soup)
+    description = soup.select_one('.field--name-field-description .field__item')
 
     # Extract the program ID from path (/program/ermaj1688 → ermaj1688)
     prog_id = path.lstrip("/program/")
@@ -106,6 +108,9 @@ def parse_program(path: str) -> dict | None:
         "code":     code,
         "courses":  course_codes,
         "requirementGroups": requirementGroups,
+        "requirementSchema": 2,
+        "description": description.get_text(' ', strip=True) if description else '',
+        "source": url,
     }
 
 
@@ -187,12 +192,7 @@ def _parse_requirement_groups(soup) -> dict:
             continue
         content_div = field.find(class_="field__item") or field
 
-        blocks = []
-        for el in content_div.find_all(["p", "li"], recursive=True):
-            block = _requirement_block(el)
-            if block:
-                blocks.append(block)
-        result[key]["blocks"] = blocks
+        result[key]["blocks"] = structured_blocks(content_div, key)
 
     return result
 
@@ -355,6 +355,7 @@ def main() -> None:
         sections = [{"slug": s, "name": s.replace("-", " ").replace(",", "")} for s in slugs]
 
     result_sections = []
+    seen_programs = set()
     for sec in sections:
         slug = sec["slug"]
         print(f"  {slug} ...", end=" ", flush=True)
@@ -370,8 +371,9 @@ def main() -> None:
         for path in prog_paths:
             try:
                 prog = parse_program(path)
-                if prog:
+                if prog and prog['id'] not in seen_programs:
                     programs.append(prog)
+                    seen_programs.add(prog['id'])
                 time.sleep(0.15)
             except Exception as e:
                 print(f"    {path} ERROR: {e}")
@@ -392,7 +394,7 @@ def main() -> None:
         "totalPrograms": sum(len(s["programs"]) for s in result_sections),
     }
     dest = OUTPUT_DIR / "utm-programs.json"
-    if output['totalPrograms'] < 180:
+    if output['totalPrograms'] < 160:
         raise ValueError('Unexpected catalog shrinkage; preserving previous UTM snapshot')
     write_json(dest, output)
     print(f"\nDone → {dest} ({output['totalPrograms']} programs)")

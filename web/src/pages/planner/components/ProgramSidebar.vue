@@ -21,6 +21,9 @@ const isSelected = (id) => state.selectedPrograms.some(p => p.id === id)
 
 <template>
   <aside ref="sidebarEl" class="sidebar">
+    <label class="program-search">Find a program
+      <input v-model="state.sectionFilter" type="search" placeholder="Subject, program or code" aria-label="Find a program" @input="closePopup">
+    </label>
     <div class="section-list">
       <button
         v-for="s in filteredSections"

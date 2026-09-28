@@ -58,6 +58,18 @@ describe('campus-specific degree rules', () => {
     for (let i = 100; i < 132; i++) { statuses[`CSC${i}H5`] = 3; courses[`CSC${i}H5`] = {} }
     expect(progress('utm', statuses, courses).total).toBe(15)
   })
+  it('flags reciprocal exclusions for credit review without mislabeling the CSCA08/CSCA48 sequence', () => {
+    const stg = read('stg-courses')
+    const excluded = progress('stg', { ACT230H1: 3, ACT240H1: 3 }, stg, [3])
+    expect(excluded.exclusionReview).toEqual([['ACT230H1', 'ACT240H1']])
+    const utsc = read('utsc-courses')
+    const sequence = progress('utsc', { CSCA08H3: 3, CSCA48H3: 3 }, utsc, [3])
+    expect(sequence.exclusionReview).toEqual([])
+    const orderedCredit = progress('utsc', { MGEB12H3: 3, STAC67H3: 3 }, utsc, [3])
+    expect(orderedCredit.exclusionReview).toEqual([])
+    const stgTiming = progress('stg', { PHY100H1: 3, PHY202H1: 3 }, stg, [3])
+    expect(stgTiming.exclusionReview).toEqual([])
+  })
   it.each(Object.keys(CAMPUSES))('%s requires a recognized program pattern', campus => {
     expect(combination([{ type: 'Major', id: 'one' }], campus).messages.length).toBeGreaterThan(0)
     expect(combination([{ type: 'Major', id: 'one' }, { type: 'Minor', id: 'two' }, { type: 'Minor', id: 'three' }], campus).messages).toEqual([])

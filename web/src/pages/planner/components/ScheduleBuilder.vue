@@ -5,6 +5,7 @@ import {
   toggleFriends, addFriend, removeFriend, renameFriend, addFriendCourse, removeFriendCourse,
 } from '../store.js'
 import CoursePicker from './CoursePicker.vue'
+import HardConstraints from './HardConstraints.vue'
 
 const DAYS = [
   { d: 1, label: 'Mon' }, { d: 2, label: 'Tue' }, { d: 3, label: 'Wed' },
@@ -12,7 +13,7 @@ const DAYS = [
 ]
 const WARN_TEXT = {
   conflict: (w) => `${w.code}: time conflict`,
-  missing: (w) => `${w.code}: not offered in ${w.term}`,
+  missing: (w) => `${w.code}: ${w.reason || `not offered in ${w.term}`}`,
   tba: (w) => `${w.code}: no meeting times posted yet (${w.term}, TBA)`,
   friend: (w) => `${w.code}: can't fit their own courses around the shared ones (${w.term})`,
 }
@@ -133,6 +134,8 @@ const WARN_TEXT = {
           </span>
         </div>
       </div>
+
+      <HardConstraints />
 
       <label class="friend-toggle">
         <input type="checkbox" :checked="state.friends.enabled" @change="toggleFriends($event.target.checked)">

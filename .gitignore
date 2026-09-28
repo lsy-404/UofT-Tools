@@ -1,6 +1,7 @@
 # Node / Vite
 node_modules/
 .pnpm-store/
+.cache/
 *-refresh.log
 pnpm-workspace.yaml
 dist/

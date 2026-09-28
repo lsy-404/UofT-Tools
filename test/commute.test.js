@@ -15,11 +15,13 @@ describe('campus helpers', () => {
     expect(campusOf('CSC108H5')).toBe('5')
     expect(campusOf('MAT135H1')).toBe('1')
     expect(campusOf('BIO399Y3')).toBe('3')
+    expect(campusOf('ANT311Y0')).toBe('0')
     expect(campusOf('')).toBe('')
   })
   it('maps the digit to a campus name', () => {
     expect(campusName('CSC108H5')).toBe('UTM')
     expect(campusName('MAT135H1')).toBe('St. George')
+    expect(campusName('ANT311Y0')).toBe('Off campus')
   })
   it('derives the buffer in ms, honouring enabled/hours', () => {
     expect(commuteBufferMs({ commute: { enabled: true, hours: 1 } })).toBe(3600000)
@@ -31,6 +33,12 @@ describe('campus helpers', () => {
 })
 
 describe('cross-campus commute buffer', () => {
+  it('does not treat off-campus instruction as St. George for travel checks', () => {
+    const results = [res('ANT311Y0', 1, 9, 10), res('MAT135H1', 1, 10, 11)]
+    markConflicts(results, COMMUTE(1))
+    expect(results[0].conflict).toBe(true)
+    expect(results[1].conflict).toBe(true)
+  })
   it('flags back-to-back classes on different campuses within the buffer', () => {
     const results = [res('CSC108H5', 1, 9, 10), res('MAT135H1', 1, 10, 11)]
     markConflicts(results, COMMUTE(1))

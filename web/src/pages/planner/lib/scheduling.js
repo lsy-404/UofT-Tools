@@ -1,4 +1,5 @@
 // Pure schedule-generation + grid-layout logic — no DOM, no Vue. Unit-testable.
+import { allowedSections, constraintError, lunchFits, sectionRules } from './constraints.js'
 
 const COLORS = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2', '#4f46e5', '#b45309', '#be123c', '#0369a1']
 
@@ -6,12 +7,41 @@ const COLORS = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2'
 // 1 = St. George (downtown), 3 = UTSC (Scarborough), 5 = UTM (Mississauga).
 // Two classes on DIFFERENT campuses need commute time between them; same-campus
 // classes do not. Returns '' when the code has no recognizable campus digit.
-const CAMPUS_NAMES = { 1: 'St. George', 3: 'UTSC', 5: 'UTM' }
+const CAMPUS_NAMES = { 0: 'Off campus', 1: 'St. George', 3: 'UTSC', 5: 'UTM' }
 export function campusOf(code) {
   const m = /[HY](\d)$/.exec(code || '')
-  return m ? m[1] : ''
+  return m && CAMPUS_NAMES[m[1]] ? m[1] : ''
 }
 export function campusName(code) { return CAMPUS_NAMES[campusOf(code)] || '' }
+export function sectionCampus(code, sec) {
+  const modes = sec.deliveryModes || []
+  return modes.length && modes.every(mode => mode === 'SYNC' || mode === 'ASYNC') ? '' : campusOf(code)
+}
+
+export function sectionsCompatible(sections, activeSections = sections) {
+  return sections.every(sec => {
+    const groups = new Map()
+    for (const ref of sec.linkedMeetingSections || []) {
+      if (!groups.has(ref.teachMethod)) groups.set(ref.teachMethod, [])
+      groups.get(ref.teachMethod).push(ref.sectionNumber)
+    }
+    return [...groups].every(([type, allowed]) => {
+      if (sections.some(other => other.type === type && allowed.includes(other.sectionNumber))) return true
+      // The Timetable Builder can retain links to sections that are now
+      // cancelled. Accept a remaining reciprocal link only when every listed
+      // target of this type is inactive (BIO203H5 is a live example).
+      const hasActiveTarget = activeSections.some(other => other.type === type && allowed.includes(other.sectionNumber))
+      return !hasActiveTarget && sections.some(other => other.type === type &&
+        (other.linkedMeetingSections || []).some(ref => ref.teachMethod === sec.type && ref.sectionNumber === sec.sectionNumber))
+    })
+  })
+}
+
+function sectionsLinked(a, b) {
+  const linksTo = (from, to) => (from.linkedMeetingSections || []).some(ref =>
+    ref.teachMethod === to.type && ref.sectionNumber === to.sectionNumber)
+  return linksTo(a, b) || linksTo(b, a)
+}
 
 // The commute buffer (ms) from a prefs.commute = { enabled, hours } setting.
 // Disabled or 0h → no buffer. Default is 1h enabled (set in the store).
@@ -81,14 +111,16 @@ export function badgeTerms(scope) {
 // scheduling: collapse each time-signature group to one representative carrying
 // the other section names in `equivalents`. ZZ (exam-block) rooms change
 // conflict semantics, so they are part of the signature.
-export function dedupeSections(pool) {
+export function dedupeSections(pool, preserveNumbers = false) {
   const groups = new Map()
   for (const sec of pool) {
     const sig = (sec.times || [])
       .filter(t => t.day)
-      .map(t => `${t.day}|${t.startMs}|${t.endMs}|${t.room === 'ZZ' ? 'Z' : ''}`)
+      .map(t => `${t.day}|${t.startMs}|${t.endMs}|${t.sessionCode || ''}|${t.repetition || ''}|${t.repetitionTime || ''}|${t.room || ''}`)
       .sort()
-      .join(',')
+      .join(',') + '|' + JSON.stringify(sec.linkedMeetingSections || []) + '|' + JSON.stringify(sec.deliveryModes || []) +
+      '|' + JSON.stringify(sec.instructors || []) + '|' + JSON.stringify(sec.notes || []) +
+      (preserveNumbers ? `|${sec.sectionNumber || sec.name}` : '')
     if (!groups.has(sig)) groups.set(sig, [])
     groups.get(sig).push(sec)
   }
@@ -130,7 +162,7 @@ export function scoreSec(sec, freeDays, busyDays, density, timePref, placed, buf
 // overlap: opts.zzOverlap (ZZ↔ZZ, default allowed) and opts.zzWithReg
 // (ZZ↔regular class, default NOT allowed → still a conflict).
 // Key identifying one meeting block of a course (for per-block conflict marking).
-export function timeKey(code, t) { return `${code}|${t.day}|${t.startMs}|${t.endMs}` }
+export function timeKey(code, t) { return `${code}|${t.day}|${t.startMs}|${t.endMs}|${t.repetitionTime || ''}` }
 
 export function markConflicts(results, opts = {}) {
   const zzOverlap = opts.zzOverlap !== false
@@ -139,11 +171,11 @@ export function markConflicts(results, opts = {}) {
   const conflictTimes = new Set()
   const allTimes = []
   for (const r of results) {
-    const campus = campusOf(r.code)
     for (const sec of (r.sections || [])) {
+      const campus = sectionCampus(r.code, sec)
       for (const t of sec.times) {
         if (!t.day) continue
-        allTimes.push({ result: r, sec, day: t.day, startMs: t.startMs, endMs: t.endMs, zz: t.room === 'ZZ', campus, key: timeKey(r.code, t) })
+        allTimes.push({ result: r, sec, day: t.day, startMs: t.startMs, endMs: t.endMs, repetition: t.repetition, repetitionTime: t.repetitionTime, zz: t.room === 'ZZ', campus, key: timeKey(r.code, t) })
       }
     }
   }
@@ -153,6 +185,7 @@ export function markConflicts(results, opts = {}) {
       // Same course: only an overlap between two DIFFERENT sections (e.g. its
       // own LEC vs TUT) is a conflict; a section never conflicts with itself.
       if (a.result === b.result && a.sec === b.sec) continue
+      if (a.result === b.result && sectionsLinked(a.sec, b.sec)) continue
       if (a.day !== b.day) continue
       const cross = buffer > 0 && a.campus && b.campus && a.campus !== b.campus
       const overlap = a.startMs < b.endMs && a.endMs > b.startMs
@@ -177,45 +210,7 @@ export function markConflicts(results, opts = {}) {
 // Greedily pick best LEC + TUT/PRA per course given preferences.
 // prefs: { density, time, freeDays:number[], busyDays:number[] }
 export function buildSchedule(timetable, scheduledCourses, prefs) {
-  const { density, time, freeDays, busyDays } = prefs
-  const buffer = commuteBufferMs(prefs)
-  const lookup = new Map()
-  for (const c of timetable.courses) {
-    if (!lookup.has(c.code)) lookup.set(c.code, c)
-  }
-
-  const results = []
-  const placed = []
-  const colorMap = {}
-  let colorIdx = 0
-
-  for (const code of scheduledCourses) {
-    if (!colorMap[code]) colorMap[code] = COLORS[colorIdx++ % COLORS.length]
-    const entry = lookup.get(code)
-    if (!entry) {
-      results.push({ code, name: 'Not in timetable', sections: [], times: [], color: colorMap[code], missing: true })
-      continue
-    }
-
-    const lectures = dedupeSections(entry.sections.filter(s => s.type === 'LEC' || s.type === 'ASYNC'))
-    const tutorials = dedupeSections(entry.sections.filter(s => s.type === 'TUT' || s.type === 'PRA'))
-
-    const campus = campusOf(code)
-    const pickedSections = []
-    for (const pool of [lectures, tutorials]) {
-      if (!pool.length) continue
-      const scored = pool.map(sec => ({ sec, score: scoreSec(sec, freeDays, busyDays, density, time, placed, buffer, campus) }))
-      scored.sort((a, b) => b.score - a.score)
-      const best = scored[0].sec
-      pickedSections.push(best)
-      for (const t of best.times) if (t.day) placed.push({ code, day: t.day, startMs: t.startMs, endMs: t.endMs, campus })
-    }
-
-    results.push({ code, name: entry.name, sections: pickedSections, color: colorMap[code], conflict: false })
-  }
-
-  markConflicts(results, prefs)
-  return results
+  return rankedSchedules(timetable, scheduledCourses, prefs)[0]?.results || []
 }
 
 // Preference-only score for a whole arrangement (conflicts are ranked separately).
@@ -262,7 +257,14 @@ function scheduleScore(results, { freeDays, busyDays, time, density }) {
 // other courses never appear on your board but must remain placeable around the
 // shared sections — arrangements where some friend can't fit are ranked last
 // and carry their names in `infeasibleFriends`.
-export function rankedSchedules(timetable, codes, prefs, friends = []) {
+export function rankedSchedules(timetable, codes, prefs, friends = [], termCode = '') {
+  const constraints = prefs.constraints || {}
+  const failure = (reason = 'No schedule satisfies hard constraints', truncated = false) => [{
+    results: codes.map(code => ({ code, sections: [], missing: true, reason })),
+    conflicts: 0, score: 0, infeasibleFriends: [], constraintFailure: true, reason, truncated,
+  }]
+  const invalid = constraintError(constraints)
+  if (invalid) return failure(invalid)
   const zzOverlap = prefs.zzOverlap !== false
   const zzWithReg = prefs.zzWithReg === true
   const buffer = commuteBufferMs(prefs)
@@ -274,6 +276,7 @@ export function rankedSchedules(timetable, codes, prefs, friends = []) {
 
   const overlaps = (a, b) => a.day === b.day && a.startMs < b.endMs && a.endMs > b.startMs
   const pairConflict = (a, b) => {
+    if (a.code && a.code === b.code && a.sec && b.sec && a.sec !== b.sec && sectionsLinked(a.sec, b.sec)) return false
     if (a.day !== b.day) return false
     // Cross-campus pairs clash within the commute buffer (overlap included) and
     // are never exempted by ZZ overlap allowances — you still have to travel.
@@ -295,28 +298,39 @@ export function rankedSchedules(timetable, codes, prefs, friends = []) {
     return false
   }
 
-  const optionTimes = (sections, campus) => {
+  const optionTimes = (sections, code) => {
     const out = []
-    for (const sec of sections) for (const t of sec.times) if (t.day) out.push({ day: t.day, startMs: t.startMs, endMs: t.endMs, zz: t.room === 'ZZ', campus })
+    for (const sec of sections) for (const t of sec.times) if (t.day && (!termCode || !t.sessionCode || t.sessionCode === termCode))
+      out.push({ day: t.day, startMs: t.startMs, endMs: t.endMs, repetition: t.repetition, repetitionTime: t.repetitionTime, zz: t.room === 'ZZ', campus: sectionCampus(code, sec), code, sec })
     return out
   }
   // LEC × TUT options for one course. Self-conflicting combos are dropped —
   // unless ALL combos self-conflict, in which case they are kept so the course
   // still shows (marked red).
-  const buildOpts = (entry) => {
-    const campus = campusOf(entry.code)
-    const lecs = dedupeSections(entry.sections.filter(s => s.type === 'LEC' || s.type === 'ASYNC'))
-    const tuts = dedupeSections(entry.sections.filter(s => s.type === 'TUT' || s.type === 'PRA'))
-    const L = lecs.length ? lecs.map(s => [s]) : [[]]
-    const T = tuts.length ? tuts.map(s => [s]) : [[]]
+  const buildOpts = (entry, personal = true) => {
+    if (entry.cancelled) return []
+    const activeSections = entry.sections.filter(s => !s.cancelled)
+    const preserveNumbers = entry.sections.some(s => s.linkedMeetingSections?.length)
+    const types = ['LEC', 'TUT', 'PRA']
+    if (personal && sectionRules(constraints, entry.code, termCode).some(r =>
+      Object.entries(r.locked || {}).some(([type, name]) => name && !activeSections.some(s => s.type === type && s.name === name)))) return []
+    const pools = types.map(type => {
+      const offered = entry.sections.filter(s => s.type === type)
+      const active = activeSections.filter(s => s.type === type)
+      return offered.length ? dedupeSections(personal ? allowedSections(active, entry.code, termCode, constraints) : active, preserveNumbers) : null
+    }).filter(Boolean)
+    if (pools.some(pool => !pool.length)) return []
     const opts = []
-    for (const l of L) for (const t of T) {
-      const sections = [...l, ...t]
+    const combinations = pools.reduce((groups, pool) => groups.flatMap(group => pool.map(sec => [...group, sec])), [[]])
+    for (const sections of combinations) {
+      if (!sectionsCompatible(sections, activeSections)) continue
+      if (personal && !lunchFits(optionTimes(sections, entry.code), constraints)) continue
       // sScore mirrors scheduleScore's per-section terms exactly, so that
       // partial sums + the density term reproduce the final ranking score.
       let s = 0
       let hasTime = false
       for (const sec of sections) for (const tm of sec.times) {
+        if (termCode && tm.sessionCode && tm.sessionCode !== termCode) continue
         if (!tm.day) continue
         hasTime = true
         if (prefs.freeDays.includes(tm.day)) s -= 25
@@ -326,7 +340,9 @@ export function rankedSchedules(timetable, codes, prefs, friends = []) {
         if (prefs.time === 'afternoon' && hr < 12) s -= 15
       }
       if (sections.length && !hasTime) s -= 1000
-      opts.push({ sections, times: optionTimes(sections, campus), sScore: s, score: sections.reduce((acc, sec) => acc + scoreSec(sec, prefs.freeDays, prefs.busyDays, prefs.density, prefs.time, [], buffer, campus), 0) })
+      opts.push({ sections: sections.map(sec => ({ ...sec, times: sec.times.filter(tm => !termCode || !tm.sessionCode || tm.sessionCode === termCode) })),
+        times: optionTimes(sections, entry.code), sScore: s,
+        score: sections.reduce((acc, sec) => acc + scoreSec({ ...sec, times: sec.times.filter(tm => !termCode || !tm.sessionCode || tm.sessionCode === termCode) }, prefs.freeDays, prefs.busyDays, prefs.density, prefs.time, [], buffer, sectionCampus(entry.code, sec)), 0) })
     }
     const clean = opts.filter(o => !selfConflict(o.times))
     return clean.length ? clean : opts
@@ -337,9 +353,12 @@ export function rankedSchedules(timetable, codes, prefs, friends = []) {
     const entry = lookup.get(code)
     if (!entry) return { code, missing: true, opts: [{ sections: [], times: [], sScore: 0, score: 0 }] }
     const opts = buildOpts(entry)
+    if (!opts.length) return { code, missing: true, blocked: buildOpts(entry, false).length > 0, name: entry.name, reason: 'No valid active section combination satisfying hard constraints', opts: [{ sections: [], times: [], sScore: 0, score: 0 }] }
     opts.sort((a, b) => b.score - a.score)
-    return { code, name: entry.name, opts }
+    return { code, name: entry.name, notes: entry.notes || [], opts }
   })
+  const blocked = per.filter(p => p.blocked)
+  if (blocked.length) return failure(`No schedule satisfies hard constraints: no allowed section combination for ${blocked.map(p => p.code).join(', ')}`)
 
   // Friend contexts: which of YOUR courses each friend shares, plus the option
   // pools of their independent courses (offered ones only).
@@ -349,7 +368,7 @@ export function rankedSchedules(timetable, codes, prefs, friends = []) {
     const sharedSet = new Set(fCodes.filter(c => codeSet.has(c)))
     const indepOpts = fCodes
       .filter(c => !codeSet.has(c) && lookup.has(c))
-      .map(c => buildOpts(lookup.get(c)))
+      .map(c => buildOpts(lookup.get(c), false))
     return { name: f.name, sharedSet, indepOpts }
   })
 
@@ -381,8 +400,8 @@ export function rankedSchedules(timetable, codes, prefs, friends = []) {
     }
   }
   const buildResults = (pick) => per.map((p, i) => p.missing
-    ? { code: p.code, name: 'Not in timetable', sections: [], color: colorMap[p.code], missing: true }
-    : { code: p.code, name: p.name, sections: [...pick[i].sections], color: colorMap[p.code], conflict: false })
+    ? { code: p.code, name: p.name || 'Not in timetable', sections: [], color: colorMap[p.code], missing: true, reason: p.reason }
+    : { code: p.code, name: p.name, notes: p.notes, sections: [...pick[i].sections], color: colorMap[p.code], conflict: false })
 
   // Most-constrained course first → prune earlier.
   const order = per.map((_, i) => i).sort((a, b) => per[a].opts.length - per[b].opts.length)
@@ -466,6 +485,7 @@ export function rankedSchedules(timetable, codes, prefs, friends = []) {
     for (const opt of per[order[k]].opts) {
       if (nodes++ > NODE_BUDGET) { truncated = true; return }
       if (hits(opt.times, placed)) continue
+      if (!lunchFits([...placed, ...opt.times], constraints)) continue
       for (const t of opt.times) {
         placed.push(t)
         if (++dayCount[t.day] === 1) distinctDays++
@@ -507,6 +527,26 @@ export function rankedSchedules(timetable, codes, prefs, friends = []) {
     }
     pick[k] = best
     for (const t of best.times) placedG.push(t)
+  }
+  // A conflict fallback may relax class overlaps, never a personal hard limit.
+  // If greedy choices consume lunch, search other combinations with overlaps allowed.
+  if (!lunchFits(placedG, constraints)) {
+    const occupied = []
+    let fallbackNodes = 0
+    const find = k => {
+      if (!lunchFits(occupied, constraints)) return false
+      if (k === order.length) return true
+      for (const opt of per[order[k]].opts) {
+        if (++fallbackNodes > NODE_BUDGET) { truncated = true; return false }
+        pick[order[k]] = opt
+        occupied.push(...opt.times)
+        if (find(k + 1)) return true
+        occupied.length -= opt.times.length
+        if (truncated) return false
+      }
+      return false
+    }
+    if (!find(0)) return failure(truncated ? 'Search limit reached; no schedule satisfying hard constraints found' : undefined, truncated)
   }
   const results = buildResults(pick)
   tagShared(results)
@@ -574,7 +614,7 @@ export function analyzeCourseConflicts(scopeTerms, timetables, selectedCodes, pr
 }
 
 // ── Grid layout ──
-export const DAY_LABELS = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+export const DAY_LABELS = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 export const GRID_START = 8 * 3600000   // 8:00 AM
 export const GRID_END = 21 * 3600000    // 9:00 PM
 export const HOUR_PX = 60
@@ -622,11 +662,11 @@ export function buildGrid(results) {
   const hours = Array.from({ length: totalH }, (_, i) => GRID_START + i * 3600000)
   const colHeight = totalH * HOUR_PX
 
-  const dayBlocks = { 1: [], 2: [], 3: [], 4: [], 5: [] }
+  const dayBlocks = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] }
   for (const r of results) {
     for (const sec of (r.sections || [])) {
       for (const t of sec.times) {
-        if (!t.day || t.day < 1 || t.day > 5) continue
+        if (!t.day || t.day < 1 || t.day > 6) continue
         const top = msToTop(Math.max(t.startMs, GRID_START))
         const height = msToPx(Math.min(t.endMs, GRID_END) - Math.max(t.startMs, GRID_START))
         if (height <= 0) continue
@@ -634,15 +674,16 @@ export function buildGrid(results) {
           code: r.code, name: r.name, sec: sec.name, room: t.room,
           equivalents: sec.equivalents || [],
           instructors: sec.instructors || [],
-          campus: campusOf(r.code), campusName: campusName(r.code),
+          campus: sectionCampus(r.code, sec), campusName: sectionCampus(r.code, sec) ? campusName(r.code) : 'Online',
           top, height, color: r.color,
           conflict: !!(r.conflictTimes && r.conflictTimes.has(timeKey(r.code, t))),
+          repetition: t.repetition, repetitionTime: t.repetitionTime,
           shared: !!r.shared, sharedWith: r.sharedWith || [], full: !!r.full,
           startLabel: msToLabel(t.startMs), endLabel: msToLabel(t.endMs),
         })
       }
     }
   }
-  for (const d of [1, 2, 3, 4, 5]) layoutDayColumns(dayBlocks[d])
+  for (const d of [1, 2, 3, 4, 5, 6]) layoutDayColumns(dayBlocks[d])
   return { hours, dayBlocks, colHeight }
 }

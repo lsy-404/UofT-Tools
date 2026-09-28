@@ -1,36 +1,34 @@
 <script setup>
 import { courseUrl } from '../lib/campuses.js'
-import { computed } from 'vue'
-import { state, courseList, getStatus, setCourseStatus, isSatisfied } from '../store.js'
-import { badgeClass, courseYear, prereqTokens } from '../lib/courses.js'
+import { computed, ref } from 'vue'
+import { state, courseList, getStatus, setCourseStatus } from '../store.js'
+import { prereqTokens } from '../lib/courses.js'
+import { courseLevelLabel, academicCredit, prerequisiteText, ROLE_LABELS } from '../lib/course-details.js'
 
 const ROW_CLS = ['', 's-planned', 's-progress', 's-done']
+const roleFilter = ref('all')
 // Prereq quick-select cycles status: None → Plan → Taking → Done → None.
 const cycleStatus = (code) => setCourseStatus(code, (getStatus(code) + 1) % 4)
 
-const allSelectedCodes = computed(() => new Set(courseList.value.map(c => c.code)))
-
 function prereqInfo(meta) {
-  const prereqs = meta.prereqs || []
-  if (!prereqs.length) return { none: true }
-  const text = meta.prereqText || prereqs.join(', ')
-  const hasOr = / or /i.test(text)
-  const met = hasOr ? prereqs.some(isSatisfied) : prereqs.every(isSatisfied)
-  return { none: false, met, tokens: prereqTokens(text, getStatus) }
+  const text = prerequisiteText(meta)
+  if (!text) return { none: true }
+  // Recorded course completion is not evidence of grades, permissions,
+  // admission category or text-only eligibility restrictions.
+  return { none: false, tokens: prereqTokens(text, getStatus) }
 }
 
 const rows = computed(() => courseList.value.map(c => {
   const st = getStatus(c.code)
   const meta = state.courses ? state.courses[c.code] : null
-  const exclConflicts = meta ? (meta.exclusions || []).filter(ex => allSelectedCodes.value.has(ex)) : []
   return {
     code: c.code,
     programs: c.programs,
-    reqLabels: [...c.reqLabels],
+    roles: [...new Map((c.requirements || []).map(r => [r.program + r.role, r])).values()],
     rowCls: ROW_CLS[st] || '',
-    year: courseYear(c.code),
+    level: courseLevelLabel(c.code),
+    credit: academicCredit(c.code, meta),
     meta,
-    exclConflicts,
     added: !!c.added,
     prereq: meta ? prereqInfo(meta) : null,
   }
@@ -45,6 +43,7 @@ const stats = computed(() => {
     done: list.filter(c => getStatus(c.code) === 3).length,
   }
 })
+const visibleRows = computed(() => rows.value.filter(row => roleFilter.value === 'all' || (roleFilter.value === 'added' ? row.added : row.roles.some(r => r.role === roleFilter.value))))
 
 function onPreviewEnter(e) {
   const wrap = e.currentTarget
@@ -74,19 +73,26 @@ function onPreviewEnter(e) {
       <span class="stat stat-taking">{{ stats.taking }} taking</span>
       <span class="stat stat-done">{{ stats.done }} done</span>
     </div>
+    <label class="role-filter">Show course role
+      <select v-model="roleFilter" aria-label="Filter courses by requirement role">
+        <option value="all">All roles</option>
+        <option v-for="(label, role) in ROLE_LABELS" :key="role" :value="role">{{ label }}</option>
+      </select>
+    </label>
+    <p>Level describes the course code, not the year you may enrol. Check prerequisites and the official timing notes.</p>
 
     <table class="course-table">
       <thead>
         <tr>
           <th class="c-status">Status</th>
           <th class="c-course">Course</th>
-          <th class="c-flex">Required by</th>
-          <th :class="{ 'c-flex': state.courses }">{{ state.courses ? 'Prereqs' : 'Year' }}</th>
-          <th v-if="state.courses" class="c-year">Year</th>
+          <th class="c-flex">Role in selected programs</th>
+          <th class="c-flex">Prerequisites / restrictions</th>
+          <th class="c-year">Level / credit</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="row in rows" :key="row.code" :class="row.rowCls">
+        <tr v-for="row in visibleRows" :key="row.code" :class="row.rowCls">
           <td class="c-status">
             <div class="sp">
               <button class="sp-b" :class="{ 's-none': getStatus(row.code) === 0 }" @click="setCourseStatus(row.code, 0)">None</button>
@@ -97,32 +103,47 @@ function onPreviewEnter(e) {
           </td>
           <td class="c-course">
             <span class="c-name-wrap" @mouseenter="onPreviewEnter"><a class="code-link" :href="courseUrl(row.code)" target="_blank">{{ row.code }}</a><span
-              v-if="row.meta" class="course-name-preview"><span class="cn-name">{{ row.meta.name }}</span><span v-if="row.meta.description" class="cn-desc">{{ row.meta.description }}</span></span></span><span
-              v-if="row.exclConflicts.length" class="excl-flag" tabindex="0" role="note"
-              :aria-label="'Exclusion conflict — you can only count one of ' + row.code + ' and ' + row.exclConflicts.join(', ')"
-            >⊘<span class="excl-tip">Exclusion: you may only count one of <b>{{ row.code }}</b> and {{ row.exclConflicts.join(', ') }} toward your programs.</span></span>
+              v-if="row.meta" class="course-name-preview"><span class="cn-name">{{ row.meta.name }}</span><span v-if="row.meta.description" class="cn-desc">{{ row.meta.description }}</span></span></span>
           </td>
           <td class="c-flex">
             <div class="programs-tags">
-              <template v-if="row.reqLabels.length">
-                <span v-for="l in row.reqLabels" :key="l" class="ptag" style="background:#f0f9ff;color:#007FA3">{{ l }}</span>
+              <template v-if="row.roles.length">
+                <span v-for="r in row.roles" :key="r.program + r.role" class="ptag" :class="'role-' + r.role" :title="r.text">{{ r.program }} · {{ ROLE_LABELS[r.role] }}</span>
               </template>
               <template v-else>
-                <span v-for="(p, i) in row.programs" :key="i" class="ptag" :class="badgeClass(p.type)">{{ p.name }}</span>
+                <span v-for="(p, i) in row.programs" :key="i" class="ptag">{{ p.name }} · {{ row.added ? 'Added independently' : 'Reference — check requirement' }}</span>
               </template>
             </div>
           </td>
           <td :class="{ 'c-flex': state.courses }">
             <template v-if="row.meta">
               <span v-if="row.prereq.none" class="prereq-none">—</span>
-              <div v-else class="prereq-cell"><span v-if="row.prereq.met" class="prereq-met">✓</span><span v-else class="prereq-warn-icon">⚠</span>{{ ' ' }}<template v-for="(t, i) in row.prereq.tokens" :key="i"><span v-if="t.course" :class="t.cls" title="Click to cycle: None → Plan → Taking → Done" @click="cycleStatus(t.code)">{{ t.code }}</span><template v-else>{{ t.text }}</template></template></div>
+              <div v-else class="prereq-cell"><template v-for="(t, i) in row.prereq.tokens" :key="i"><span v-if="t.course" :class="t.cls" title="Click to cycle: None → Plan → Taking → Done" @click="cycleStatus(t.code)">{{ t.code }}</span><template v-else>{{ t.text }}</template></template></div>
+              <p v-if="row.meta.coreqText">Corequisite: {{ row.meta.coreqText }}</p>
+              <!-- Referenced codes alone cannot distinguish credit exclusions from
+                   directional, concurrent or conditional enrolment restrictions. -->
+              <p v-if="row.meta.exclusionText" class="exclusion-details">Exclusions / enrolment restrictions: {{ row.meta.exclusionText }}</p>
+              <p v-if="row.meta.recommendedPreparation">Recommended preparation: {{ row.meta.recommendedPreparation }}</p>
+              <p v-if="row.meta.enrolmentLimits">Enrolment limits: {{ row.meta.enrolmentLimits }}</p>
+              <p v-if="row.meta.notes">{{ row.meta.notes }}</p>
+              <details v-if="row.meta.breadth || row.meta.distribution || row.meta.hours || row.meta.modeOfDelivery || row.meta.previousCourseNumber || row.meta.courseExperience || row.meta.internationalComponent || row.meta.campusReview || row.code.endsWith('0')">
+                <summary>Other calendar details</summary>
+                <p v-if="row.meta.breadth">Breadth designation: {{ row.meta.breadth }}</p>
+                <p v-if="row.meta.distribution">Distribution requirement: {{ row.meta.distribution }}</p>
+                <p v-if="row.meta.hours">Instructional hours: {{ row.meta.hours }}</p>
+                <p v-if="row.meta.modeOfDelivery">Calendar delivery options: {{ row.meta.modeOfDelivery }}</p>
+                <p v-if="row.meta.previousCourseNumber">Previous course number: {{ row.meta.previousCourseNumber }}</p>
+                <p v-if="row.meta.courseExperience">Course experience: {{ row.meta.courseExperience }}</p>
+                <p v-if="row.meta.internationalComponent">International component: {{ row.meta.internationalComponent }}</p>
+                <p v-if="row.meta.campusReview">Calendar location note: {{ row.meta.campusReview }}</p>
+                <p v-if="row.code.endsWith('0')">Course code indicates off-campus instruction; check the actual location.</p>
+              </details>
             </template>
             <template v-else>
-              <span v-if="row.year" style="color:var(--gray-600);font-size:12px">Y{{ row.year }}</span>
-              <span v-else style="color:var(--gray-600)">—</span>
+              <span>Calendar details unavailable</span>
             </template>
           </td>
-          <td v-if="state.courses" class="c-year" style="color:var(--gray-600);font-size:12px">{{ row.year ? 'Y' + row.year : '—' }}</td>
+          <td class="c-year" style="color:var(--gray-600);font-size:12px">{{ row.level }}<br><template v-if="row.meta && !row.meta.timetableOnly">{{ row.credit }} academic credit<span v-if="row.meta.creditReview"><br>Credit conditions need review</span><span v-if="row.credit === 0"><br>Tracked separately from degree credits</span></template><template v-else>Credit unverified</template></td>
         </tr>
       </tbody>
     </table>

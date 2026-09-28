@@ -8,6 +8,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from bs4 import BeautifulSoup
 
 # Make the shared ``common`` package importable when run as a script.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -24,6 +25,17 @@ SESSION = make_session(PLANNER_UA, {
     "Accept":  "application/json",
     "Referer": "https://ttb.utoronto.ca/",
 })
+
+
+def simplify_notes(notes):
+    result = []
+    for note in notes or []:
+        content = note.get('content') or ''
+        text = BeautifulSoup(content, 'html.parser').get_text(' ', strip=True)
+        if text:
+            result.append({'name': note.get('name') or 'Timetable note', 'text': text,
+                           'html': content})
+    return result
 
 
 def get_sessions() -> list[dict]:
@@ -89,12 +101,20 @@ def simplify_course(raw: dict) -> dict:
         for mt in sec.get("meetingTimes", []):
             start = mt.get("start", {})
             end   = mt.get("end", {})
-            bld   = mt.get("building", {})
+            bld   = mt.get("building") or {}
+            room_number = bld.get('buildingRoomNumber', '') or ''
+            room_suffix = bld.get('buildingRoomSuffix', '') or ''
+            room = (bld.get('buildingCode', '') + ' ' + (room_number + room_suffix if room_number else room_suffix)).strip()
             times.append({
                 "day":       start.get("day"),
                 "startMs":   start.get("millisofday"),
                 "endMs":     end.get("millisofday"),
-                "room":      (bld.get("buildingCode", "") + " " + bld.get("buildingRoomNumber", "")).strip(),
+                "room":      room,
+                "roomSuffix": room_suffix,
+                "buildingUrl": bld.get("buildingUrl"),
+                "sessionCode": mt.get("sessionCode"),
+                "repetition": mt.get("repetition"),
+                "repetitionTime": mt.get("repetitionTime"),
             })
         instructors_raw = sec.get("instructors", []) or []
         instructors = [
@@ -105,14 +125,20 @@ def simplify_course(raw: dict) -> dict:
             "name":          sec.get("name"),
             "type":          sec.get("teachMethod"),  # LEC, TUT, PRA
             "sectionNumber": sec.get("sectionNumber"),
+            "cancelled": sec.get("cancelInd") == "Y" or raw.get("cancelInd") == "Y",
+            "linkedMeetingSections": sec.get("linkedMeetingSections", []),
+            "deliveryModes": [mode.get("mode") for mode in sec.get("deliveryModes", [])],
             "times":         times,
             "instructors":   instructors,
+            "notes":         simplify_notes(sec.get("notes")),
         })
     return {
         "code":        raw["code"],
         "name":        raw["name"],
         "sectionCode": raw.get("sectionCode"),   # F / S / Y
+        "cancelled": raw.get("cancelInd") == "Y",
         "sections":    sections,
+        "notes":       simplify_notes(raw.get("notes")),
     }
 
 

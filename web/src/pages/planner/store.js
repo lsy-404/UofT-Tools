@@ -1,4 +1,4 @@
-import { CAMPUSES, VALID_COURSE, progress, combination } from './lib/campuses.js'
+import { CAMPUSES, VALID_COURSE, progress, combination, degreeConfiguration } from './lib/campuses.js'
 import { reactive, computed, watch } from 'vue'
 import { buildCourseList, computeSuggestions } from './lib/courses.js'
 import {
@@ -15,7 +15,28 @@ const LS_EXTRA = 'utm_extra_courses'
 const LS_SCHEDULE = 'utm_schedule'
 const profileKey = key => state.campus === 'utm' ? key : `${state.campus}_${key}`
 const LS_TTB_WARNING = 'utm_ttb_warning_seen'
-const defaultPrefs = () => ({ density: 'any', time: 'any', freeDays: [], busyDays: [], zzOverlap: true, zzWithReg: false, commute: { enabled: true, hours: 1 } })
+export const defaultConstraints = () => ({
+  sections: {}, unavailable: [], earliest: '', latest: '', excludedInstructors: [],
+  lunch: { enabled: false, start: '11:00', end: '14:00', minutes: 60 }, online: 'any',
+})
+const defaultPrefs = () => ({ density: 'any', time: 'any', freeDays: [], busyDays: [], zzOverlap: true, zzWithReg: false, commute: { enabled: true, hours: 1 }, constraints: defaultConstraints() })
+
+function restoredPrefs(saved = {}) {
+  const defaults = defaultPrefs()
+  const old = saved && typeof saved === 'object' ? saved : {}
+  const c = old.constraints && typeof old.constraints === 'object' ? old.constraints : {}
+  return {
+    ...defaults, ...old,
+    commute: { ...defaults.commute, ...(old.commute || {}) },
+    constraints: {
+      ...defaults.constraints, ...c,
+      sections: c.sections && typeof c.sections === 'object' && !Array.isArray(c.sections) ? c.sections : {},
+      unavailable: Array.isArray(c.unavailable) ? c.unavailable : [],
+      excludedInstructors: Array.isArray(c.excludedInstructors) ? c.excludedInstructors : [],
+      lunch: { ...defaults.constraints.lunch, ...(c.lunch || {}) },
+    },
+  }
+}
 
 function saveSchedule() {
   try {
@@ -117,7 +138,7 @@ export const filteredSections = computed(() => {
   if (!state.programs) return []
   const f = state.sectionFilter.toLowerCase()
   return state.programs.sections.filter(s =>
-    !f || (s.name || '').toLowerCase().includes(f) || s.slug.toLowerCase().includes(f),
+    !f || (s.name || '').toLowerCase().includes(f) || s.slug.toLowerCase().includes(f) || s.programs.some(p => `${p.name} ${p.code}`.toLowerCase().includes(f)),
   )
 })
 export const popupSection = computed(() =>
@@ -142,7 +163,7 @@ export const lockedExtraCourses = computed(() => {
     .sort()
 })
 
-export const campusConfig = computed(() => CAMPUSES[state.campus])
+export const campusConfig = computed(() => degreeConfiguration(state.campus, activePrograms.value))
 export const degreeProgress = computed(() => progress(state.campus, state.courseStatus, state.courses))
 export const degreeProgressActual = computed(() => progress(state.campus, state.courseStatus, state.courses, [2, 3]))
 export const degreeBreakdown = computed(() => ({
@@ -185,7 +206,7 @@ export const courseOfferings = computed(() => {
     for (const c of tt.courses) {
       if (!raw[c.code]) raw[c.code] = []
       if (raw[c.code].some(t => t.value === term.value)) continue
-      const timed = (c.sections || []).some(s => (s.times || []).some(t => t.day >= 1 && t.day <= 5 && t.endMs > t.startMs))
+      const timed = (c.sections || []).some(s => (s.times || []).some(t => t.day >= 1 && t.day <= 6 && t.endMs > t.startMs))
       raw[c.code].push({ value: term.value, label: term.label, tba: !timed })
     }
   }
@@ -223,14 +244,14 @@ export const scheduleSelection = computed(() => ({
 export const scheduleWarnings = computed(() => {
   const out = []
   const seen = { conflict: new Set(), missing: new Set(), tba: new Set(), friend: new Set() }
-  const add = (type, code, term) => {
+  const add = (type, code, term, reason) => {
     if (seen[type].has(code)) return
     seen[type].add(code)
-    out.push({ type, code, term })
+    out.push({ type, code, term, reason })
   }
   for (const term of state.board) {
     for (const r of term.results) {
-      if (r.missing) add('missing', r.code, term.label)
+      if (r.missing) add('missing', r.code, term.label, r.reason)
       else if (r.conflict) add('conflict', r.code)
     }
     for (const code of (term.tba || [])) add('tba', code, term.label)
@@ -443,6 +464,7 @@ function prefsObj() {
     zzOverlap: state.prefs.zzOverlap,
     zzWithReg: state.prefs.zzWithReg,
     commute: { enabled: state.prefs.commute?.enabled !== false, hours: Number(state.prefs.commute?.hours) || 0 },
+    constraints: JSON.parse(JSON.stringify(state.prefs.constraints || defaultConstraints())),
   }
 }
 
@@ -485,7 +507,7 @@ function computeOptions(scope) {
     const tt = mergedColumnTimetable(scope, term)
     const inTerm = columnCodes(scope, term, fullCodes, fullVal)
     optionsCache[term.value] = inTerm.length
-      ? rankedSchedules(tt, inTerm, prefsObj(), friends)
+      ? rankedSchedules(tt, inTerm, prefsObj(), friends, term.value)
       : [{ results: [], conflicts: 0, score: 0, infeasibleFriends: [] }]
   }
 }
@@ -505,6 +527,7 @@ function renderSoloBoard(scope) {
       published: (tt.courseCount || 0) > 0, tba,
       optionIndex: i, optionCount: options.length, conflicts: chosen.conflicts || 0,
       infeasibleFriends: chosen.infeasibleFriends || [],
+      constraintFailure: !!chosen.constraintFailure, constraintReason: chosen.reason || '',
     }
   })
 }
@@ -520,7 +543,7 @@ export function setAlt(termValue, i) {
 
 // A scheduled result is renderable only if some section has a weekday meeting time.
 function hasRenderableTimes(r) {
-  return (r.sections || []).some(s => (s.times || []).some(t => t.day >= 1 && t.day <= 5 && t.endMs > t.startMs))
+  return (r.sections || []).some(s => (s.times || []).some(t => t.day >= 1 && t.day <= 6 && t.endMs > t.startMs))
 }
 
 let refreshTimer = null
@@ -549,7 +572,10 @@ export async function refreshSchedule() {
   renderSoloBoard(scope)
 
   const unpublished = state.board.some(t => !t.published)
-  state.schedNotice = unpublished ? 'One or more terms have no published timetable yet.' : ''
+  const infeasible = state.board.find(t => t.constraintFailure)
+  state.schedNotice = infeasible
+    ? `${infeasible.label}: ${infeasible.constraintReason || 'No schedule satisfies hard constraints'}. Adjust the hard constraints to see options.`
+    : unpublished ? 'One or more terms have no published timetable yet.' : ''
 }
 
 export const generateSchedule = refreshSchedule
@@ -631,7 +657,7 @@ export async function switchCampus(campus) {
     const sc = buildScopes(state.sessions)
     state.scopeId = sc.some(s => s.id === saved.scopeId) ? saved.scopeId : sc[0]?.id || ''
     state.scheduled = saved.scheduled || {}
-    state.prefs = { ...defaultPrefs(), ...saved.prefs }
+    state.prefs = restoredPrefs(saved.prefs)
     state.board = []
     await ensureScopeTimetables()
     queueScheduleRefresh()
@@ -666,7 +692,7 @@ export async function init() {
     const sc = buildScopes(state.sessions)
     state.scopeId = sc.some(s => s.id === saved.scopeId) ? saved.scopeId : sc[0]?.id || ''
     state.scheduled = saved.scheduled || {}
-    state.prefs = { ...defaultPrefs(), ...saved.prefs }
+    state.prefs = restoredPrefs(saved.prefs)
     await ensureScopeTimetables()
     queueScheduleRefresh()
   } catch (error) { state.loadError = `Planner data could not be loaded: ${error.message}` }

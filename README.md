@@ -19,7 +19,7 @@ Visit **[uoft.voidcarve.com](https://uoft.voidcarve.com)** to access all tools a
 
 - **Frontend**: Vue 3 + Vite multi-page app, isolated under `web/` (page entries + `web/src/`), deployed to Cloudflare (Workers static assets)
 - **Backend**: Python web scrapers (Playwright + BeautifulSoup), organised by module under `scripts/{calendar,planner,common}/`, run on a schedule via GitHub Actions
-- **Data**: scraper-generated `*.ics` / planner JSON live in `data/` (separate from the web sources). `npm run build` runs `vite build` then `copy-data.mjs`, which copies `data/` into `dist/` so the deployed paths (`/calendar/*.ics`, `/planner/data/*.json`) are unchanged
+- **Data**: scraper-generated `*.ics` / planner JSON live in `data/` (separate from the web sources). Vite serves this directory in development and copies it into `dist/` during the build, preserving paths such as `/calendar/*.ics` and `/planner/data/*.json`
 - **Deployment**: `dist/` is the publish directory (`wrangler deploy`); `npm run deploy` builds + deploys
 - **Updates**: Automatic calendar sync every 24 hours
 
@@ -29,7 +29,7 @@ Visit **[uoft.voidcarve.com](https://uoft.voidcarve.com)** to access all tools a
 web/        Vue 3 + Vite app (index/faq/statement/calendar/planner entries + src/)
 data/       scraper output — calendar/*.ics, planner/data/*.json (copied into dist/ at build)
 scripts/    Python scrapers — calendar/ planner/ common/
-dist/       build output (gitignored): vite build + copied data/
+dist/       build output (gitignored): app assets and copied data/
 ```
 
 ### Local development
@@ -37,7 +37,7 @@ dist/       build output (gitignored): vite build + copied data/
 ```bash
 npm install
 npm run dev                       # Vite dev server (web/ app)
-npm run build                     # vite build → dist/, then copy data/ → dist/
+npm run build                     # vite build → dist/, including data/
 npm run preview                   # serve dist/ with data (full local test)
 npm test                          # Vitest unit + component tests
 ```
@@ -53,4 +53,4 @@ This project is **not** affiliated with, sponsored by, or endorsed by the Univer
 
 ## Three-campus planner
 
-The planner supports UTM and selected UTSG Arts & Science / UTSC programs, with separate home-campus profiles and full ERIN/ARTSC/SCAR timetable snapshots. See [coverage, official sources and maintenance](docs/planner-coverage.md) for the exact supported scope and limitations. Degree progress is a partial check, not certification of graduation. Cross-campus course recognition requires manual verification.
+The planner retains UTM and imports every entry in the UTSG Arts & Science (including Rotman) and UTSC official program-search catalogs, with separate home-campus profiles and full ERIN/ARTSC/SCAR timetable snapshots. Course roles distinguish required courses, alternatives, elective pools and optional recommendations; course levels are separate from recommended study years. See [coverage, official sources and maintenance](docs/planner-coverage.md) for scope, inventory reconciliation and limitations. Degree progress is a partial check, not certification of graduation. Cross-campus course recognition requires manual verification.

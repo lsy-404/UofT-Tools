@@ -45,7 +45,8 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
       <p v-if="state.loadError" role="alert">{{ state.loadError }} <button @click="init">Retry</button></p>
       <details>
         <summary>Supported scope, data year and official sources</summary>
-        <p>{{ campusConfig.faculty }}. {{ state.campus === 'utm' ? 'Existing UTM program catalog retained.' : 'Selected programs in Computer Science, Mathematics and Economics (UTSC: Economics for Management Studies). Only the programs listed in the sidebar are included; these subjects are not exhaustively covered.' }}</p>
+        <p>{{ campusConfig.faculty }}. {{ state.programs?.coverage || 'Existing UTM program catalog retained.' }}</p>
+        <p v-if="state.programs?.inventory">{{ state.programs.inventory.programCount }} program / certificate entries across {{ state.programs.inventory.programPages.length }} official search pages; {{ state.programs.inventory.courseCount }} calendar courses. <a :href="state.programs.source" target="_blank" rel="noopener">Verify the official directory</a></p>
         <p>Catalog year: {{ state.programs?.calendarYear || 'legacy UTM snapshot; year not recorded by original importer' }}. Retrieved: {{ state.programs?.retrievedAt || 'not recorded' }}. Rules checked 2026-09-27 against 2026–2027 calendars. Use the calendar for your admission and program-entry year.</p>
         <a :href="campusConfig.calendar" target="_blank" rel="noopener">Official academic calendar</a>
         <p>Schedules use public Timetable Builder snapshots for UTM (ERIN), UTSC (SCAR) and UTSG Arts & Science (ARTSC). Course availability, enrolment eligibility and room changes must be confirmed in ACORN. Other faculties are not covered by the schedule snapshots or degree checks.</p>
