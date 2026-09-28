@@ -1,5 +1,5 @@
 /* ──────────────────────────────────────────────────────────────────────────
-   UTM Course Planner — app styles. Scoped under .planner-scope so the planner's
+   Planner app styles. Scoped under .planner-scope so the planner's
    own design tokens, base font and white background don't leak onto the rest of
    the SPA. Component-spanning descendant selectors (.course-table tr.s-done td)
    keep working because the whole planner shares this one stylesheet.

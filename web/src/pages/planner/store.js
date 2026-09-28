@@ -75,7 +75,7 @@ export const state = reactive({
   timetable: null,
   timetableSession: null,
 
-  activeTab: 'programs',         // 'programs' | 'courses' | 'schedule'
+  activeTab: 'programs',
   viewMode: 'list',              // 'list' | 'requirements'
 
   sectionFilter: '',

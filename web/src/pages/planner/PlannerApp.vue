@@ -99,7 +99,6 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
       </div>
     </section>
 
-    <!-- Schedule Builder -->
     <section id="schedule-panel" class="tab-panel" :class="{ active: state.activeTab === 'schedule' }" aria-label="Schedule builder">
       <ScheduleBuilder />
       <div class="grid-area">

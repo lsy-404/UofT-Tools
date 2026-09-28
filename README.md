@@ -54,3 +54,5 @@ This project is **not** affiliated with, sponsored by, or endorsed by the Univer
 ## Three-campus planner
 
 The planner retains UTM and imports every entry in the UTSG Arts & Science (including Rotman) and UTSC official program-search catalogs, with separate home-campus profiles and full ERIN/ARTSC/SCAR timetable snapshots. Course roles distinguish required courses, alternatives, elective pools and optional recommendations; course levels are separate from recommended study years. See [coverage, official sources and maintenance](docs/planner-coverage.md) for scope, inventory reconciliation and limitations. Degree progress is a partial check, not certification of graduation. Cross-campus course recognition requires manual verification.
+
+The Planner has three sections: choose a home campus and programs, build a course plan, then select timetable sections and preview schedules.
