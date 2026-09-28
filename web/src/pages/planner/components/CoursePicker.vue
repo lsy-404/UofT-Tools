@@ -54,7 +54,7 @@ function add(code) {
 <template>
   <div class="course-picker">
     <label class="cp-label">{{ label }}</label>
-    <label>Browse campus <select v-model="searchCampus" aria-label="Course campus" @change="browsing = true"><option value="all">All campuses</option><option v-for="(c, k) in CAMPUSES" :key="k" :value="k">{{ c.name }}</option></select></label>
+    <label>Browse catalog / home faculty <select v-model="searchCampus" aria-label="Course catalog or home faculty" @change="browsing = true"><option value="all">All catalogs</option><option v-for="(c, k) in CAMPUSES" :key="k" :value="k">{{ c.name }}{{ k === 'stg' ? ' (includes off-campus instruction)' : '' }}</option></select></label>
     <div class="cp-row">
       <div class="cp-input-wrap">
         <input v-model="query" class="cp-input" type="text" :placeholder="placeholder" @focus="browsing = true" @keydown.esc="browsing = false">

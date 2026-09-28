@@ -30,6 +30,8 @@
 .tab-btn:hover:not(.active){color:var(--blue-light)}
 .tab-panel{display:none}
 .tab-panel.active{display:flex;flex:1;min-height:0}
+.program-panel.active{flex-direction:column}
+.program-workspace{display:flex;flex:1;min-height:0}
 
 /* ── Sidebar ── */
 .sidebar{width:220px;flex-shrink:0;border-right:1px solid var(--gray-200);display:flex;flex-direction:column;background:var(--gray-50);position:relative;z-index:100}

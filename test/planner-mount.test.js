@@ -45,19 +45,37 @@ beforeEach(() => {
   state.selectedPrograms = []
   state.activeTab = 'programs'
   state.viewMode = 'list'
+  state.courseStatus = {}
+  state.scheduled = {}
+  state.ttbWarningOpen = false
 })
 
 describe('PlannerApp mounts and renders', () => {
-  it('renders three top-level Planner sections and the program sidebar after init', async () => {
+  it('switches the active panel by clicking each Planner section control', async () => {
     const wrapper = mount(PlannerApp)
     await init()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Campus & Programs')
-    expect(wrapper.text()).toContain('Course Plan')
-    expect(wrapper.text()).toContain('Schedule Builder')
-    expect(wrapper.text()).toContain('Computer Science')
-    expect(wrapper.text()).toContain('Program combination')
+    const controls = wrapper.findAll('.tab-btn')
+    expect(controls).toHaveLength(3)
+    expect(controls[0].attributes('aria-pressed')).toBe('true')
+    expect(wrapper.find('.tab-panel.active').attributes('aria-label')).toBe('Campus and program selection')
+    expect(wrapper.find('.program-panel .campus-banner').exists()).toBe(true)
+    expect(wrapper.find('.program-panel .program-workspace .sidebar').exists()).toBe(true)
+    expect(wrapper.find('.program-panel .program-workspace .main').exists()).toBe(true)
+
+    await controls[1].trigger('click')
+    expect(controls[1].attributes('aria-pressed')).toBe('true')
+    expect(wrapper.find('.tab-panel.active').attributes('aria-label')).toBe('Course plan')
+    expect(wrapper.find('.tab-panel.active').text()).toContain('Browse catalog / home faculty')
+
+    await controls[2].trigger('click')
+    expect(controls[2].attributes('aria-pressed')).toBe('true')
+    expect(wrapper.find('.tab-panel.active').attributes('aria-label')).toBe('Schedule builder')
+
+    await controls[0].trigger('click')
+    expect(controls[0].attributes('aria-pressed')).toBe('true')
+    expect(wrapper.find('.tab-panel.active').attributes('aria-label')).toBe('Campus and program selection')
   })
 
   it('keeps course statuses and requirements in the Course Plan section', async () => {
@@ -66,7 +84,7 @@ describe('PlannerApp mounts and renders', () => {
     await flushPromises()
 
     toggleProgram('p1')
-    state.activeTab = 'courses'
+    await wrapper.findAll('.tab-btn')[1].trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('CSC108H5')
     expect(wrapper.text()).toContain('CSC148H5')
@@ -77,13 +95,18 @@ describe('PlannerApp mounts and renders', () => {
     expect(wrapper.text()).toContain('Completion Requirements')
   })
 
-  it('renders the schedule builder when switching tabs', async () => {
+  it('syncs planned courses and opens the TTB warning when Schedule Builder is clicked', async () => {
     const wrapper = mount(PlannerApp)
     await init()
     await flushPromises()
 
-    state.activeTab = 'schedule'
+    state.courseStatus = { CSC108H5: 1 }
+    state.scheduled = { CSC108H5: ['20269'], CSC148H5: ['20269'] }
+    await wrapper.findAll('.tab-btn')[2].trigger('click')
     await flushPromises()
+    expect(state.scheduled.CSC108H5).toEqual(['20269'])
+    expect(state.scheduled.CSC148H5).toBeUndefined()
+    expect(wrapper.find('[role="alertdialog"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Courses')
     expect(wrapper.text()).toContain('Settings')
     expect(wrapper.text()).toContain('Select courses to preview a schedule.')

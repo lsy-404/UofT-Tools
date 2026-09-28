@@ -8,7 +8,7 @@ import { progress, degreeConfiguration, combination } from '../web/src/pages/pla
 import { buildCourseList } from '../web/src/pages/planner/lib/courses.js'
 import { rankedSchedules } from '../web/src/pages/planner/lib/scheduling.js'
 import CourseListView from '../web/src/pages/planner/components/CourseListView.vue'
-import ProgramSelector from '../web/src/pages/planner/components/ProgramSelector.vue'
+import CoursePlanHeader from '../web/src/pages/planner/components/CoursePlanHeader.vue'
 import { state } from '../web/src/pages/planner/store.js'
 
 const read = name => JSON.parse(readFileSync(resolve(`data/planner/data/${name}.json`), 'utf8'))
@@ -74,7 +74,7 @@ describe('official review regression cases', () => {
     state.campus = 'stg'
     state.courses = read('stg-courses')
     state.courseStatus = { ACT230H1: 3, ACT240H1: 3 }
-    const wrapper = mount(ProgramSelector)
+    const wrapper = mount(CoursePlanHeader)
     expect(wrapper.text()).toContain('ACT230H1 / ACT240H1')
     expect(wrapper.text()).toContain('may overcount')
     wrapper.unmount()
