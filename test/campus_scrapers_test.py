@@ -231,6 +231,14 @@ class CalendarAdapterTests(unittest.TestCase):
         self.assertEqual(p['courses'], ['CSCC01H3', 'CSCD01H3'])
         self.assertEqual(p['requirementGroups']['completion']['blocks'][0]['requiredCredits'], 1)
 
+    def test_stg_off_campus_reference_missing_from_course_catalog_is_recorded(self):
+        programs = [{'courses': ['VIS100H1', 'VIS300H0', 'CSCA08H3']}]
+        courses = {'VIS100H1': {}}
+        self.assertEqual(
+            catalog.referenced_courses_outside_catalog('stg', programs, courses),
+            ['VIS300H0'],
+        )
+
     @patch.object(timetable.SESSION, 'post')
     def test_incomplete_pagination_is_not_published(self, post):
         response = Mock(status_code=200)

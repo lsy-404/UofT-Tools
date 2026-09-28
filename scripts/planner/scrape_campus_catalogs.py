@@ -83,6 +83,12 @@ def search_pages(base, path):
         yield url, [(h.get_text(' ', strip=True), h.find_next_sibling()) for h in heads]
 
 
+def referenced_courses_outside_catalog(campus, programs, courses):
+    suffixes = ('1', '0') if campus == 'stg' else ('3',)
+    referenced = {code for program in programs for code in program['courses'] if code.endswith(suffixes)}
+    return sorted(referenced - courses.keys())
+
+
 def program(root, title, url, campus):
     code = re.search(r'\b(?:AS|SC)(?:SPE|MAJ|MIN|CER|FOC)\w+', title, re.I)
     kind = re.search(r'\b(Specialist|Major|Minor|Certificate)\b', title, re.I)
@@ -200,9 +206,9 @@ def scrape(campus):
     imported = sorted(p['id'] for s in sections.values() for p in s['programs'])
     if imported != sorted(discovered):
         raise ValueError('Program inventory does not reconcile')
-    suffix = '1' if campus == 'stg' else '3'
-    referenced = {c for s in sections.values() for p in s['programs'] for c in p['courses'] if c.endswith(suffix)}
-    unavailable = sorted(referenced - courses.keys())
+    unavailable = referenced_courses_outside_catalog(
+        campus, [p for section in sections.values() for p in section['programs']], courses
+    )
     inventory = {'programPages': program_pages, 'coursePages': course_pages, 'discoveredProgramIds': sorted(discovered),
                  'importedProgramIds': imported, 'missingProgramIds': [], 'programCount': len(imported),
                  'courseCount': len(courses), 'referencedCoursesOutsideCurrentCatalog': unavailable}
