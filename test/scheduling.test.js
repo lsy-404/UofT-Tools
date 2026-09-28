@@ -21,7 +21,64 @@ describe('scoreSec', () => {
   })
 })
 
+describe('official section restrictions', () => {
+  const prefs = { freeDays: [], busyDays: [], density: 'compact', time: 'any', commute: { enabled: true, hours: 1 } }
+  it('selects active and linked lecture, tutorial and practical sections together', () => {
+    const course = { code: 'TST100H5', name: 'Example', sections: [
+      { ...lec(1, 9, 10, 'LEC0101'), sectionNumber: '0101' },
+      { ...lec(1, 11, 12, 'LEC0102'), sectionNumber: '0102', cancelled: true },
+      { name: 'TUT0101', type: 'TUT', sectionNumber: '0101', linkedMeetingSections: [{ teachMethod: 'LEC', sectionNumber: '0102' }], times: [] },
+      { name: 'TUT0102', type: 'TUT', sectionNumber: '0102', linkedMeetingSections: [{ teachMethod: 'LEC', sectionNumber: '0101' }], times: [] },
+      { name: 'PRA0101', type: 'PRA', sectionNumber: '0101', times: [] },
+    ] }
+    const alternatives = rankedSchedules({ courses: [course] }, ['TST100H5'], prefs)
+    expect(alternatives[0].results[0].sections.map(s => s.name)).toEqual(['LEC0101', 'TUT0102', 'PRA0101'])
+    expect(alternatives.every(a => a.results[0].sections.every(s => !s.cancelled))).toBe(true)
+  })
+  it('reports no valid option when an entire required component is cancelled', () => {
+    const course = { code: 'TST100H5', name: 'Example', sections: [
+      lec(1, 9, 10), { ...lec(1, 11, 12, 'PRA0101'), type: 'PRA', cancelled: true },
+    ] }
+    const result = rankedSchedules({ courses: [course] }, ['TST100H5'], prefs)[0].results[0]
+    expect(result.missing).toBe(true)
+    expect(result.reason).toContain('No valid active')
+  })
+  it('keeps a linked section number even when another section has the same time', () => {
+    const course = { code: 'TST100H5', name: 'Example', sections: [
+      { ...lec(1, 9, 10, 'LEC0101'), sectionNumber: '0101' },
+      { ...lec(1, 9, 10, 'LEC0102'), sectionNumber: '0102' },
+      { name: 'TUT0101', type: 'TUT', sectionNumber: '0101', linkedMeetingSections: [{ teachMethod: 'LEC', sectionNumber: '0102' }], times: [] },
+    ] }
+    const result = rankedSchedules({ courses: [course] }, ['TST100H5'], prefs)[0].results[0]
+    expect(result.sections.map(s => s.name)).toEqual(['LEC0102', 'TUT0101'])
+  })
+  it('shows the correct term of a full-year course and Saturday meetings', () => {
+    const course = { code: 'TST100Y5', name: 'Year course', sections: [{ name: 'LEC0101', type: 'LEC', times: [
+      { day: 1, startMs: 9 * 3600000, endMs: 10 * 3600000, sessionCode: '20269' },
+      { day: 6, startMs: 11 * 3600000, endMs: 12 * 3600000, sessionCode: '20271' },
+    ] }] }
+    const timetable = { courses: [course] }
+    const fall = rankedSchedules(timetable, ['TST100Y5'], prefs, [], '20269')[0].results[0]
+    const winter = rankedSchedules(timetable, ['TST100Y5'], prefs, [], '20271')[0].results[0]
+    expect(fall.sections[0].times).toHaveLength(1)
+    expect(winter.sections[0].times).toHaveLength(1)
+    expect(buildGrid([winter]).dayBlocks[6]).toHaveLength(1)
+  })
+})
+
 describe('markConflicts', () => {
+  it('flags overlapping biweekly meetings even when the API phase labels differ', () => {
+    const alternating = phase => ({ sections: [{ ...lec(1, 10, 11), times: [{ ...lec(1, 10, 11).times[0], repetition: 'BI_WEEKLY', repetitionTime: phase }] }] })
+    const first = alternating('FIRST_AND_THIRD_WEEK')
+    const second = alternating('SECOND_AND_FOURTH_WEEK')
+    markConflicts([first, second])
+    expect(first.conflict).toBe(true)
+    expect(second.conflict).toBe(true)
+    const weekly = { sections: [lec(1, 10, 11)] }
+    markConflicts([first, weekly])
+    expect(first.conflict).toBe(true)
+    expect(weekly.conflict).toBe(true)
+  })
   it('flags two results that overlap in time', () => {
     const results = [
       { sections: [lec(1, 10, 11)] },
@@ -76,6 +133,15 @@ describe('markConflicts', () => {
 })
 
 describe('rankedSchedules', () => {
+  it('does not claim a conflict-free schedule from opposite API phase labels alone', () => {
+    const alternate = (code, phase) => ({ code, name: code, sections: [{
+      ...lec(1, 10, 11), times: [{ ...lec(1, 10, 11).times[0], repetition: 'BI_WEEKLY', repetitionTime: phase }],
+    }] })
+    const tt = { courses: [alternate('AAA100H5', 'FIRST_AND_THIRD_WEEK'), alternate('BBB100H5', 'SECOND_AND_FOURTH_WEEK')] }
+    const result = rankedSchedules(tt, ['AAA100H5', 'BBB100H5'], { density: 'any', time: 'any', freeDays: [], busyDays: [] })[0]
+    expect(result.conflicts).toBeGreaterThan(0)
+    expect(result.results.every(r => r.conflict)).toBe(true)
+  })
   it('ranks a conflict-free arrangement first, even when preferences differ', () => {
     const tt = { courses: [
       { code: 'CSC108H5', name: 'CS', sections: [lec(1, 9, 10, 'LEC0101'), lec(1, 10, 11, 'LEC0102')] },
@@ -146,6 +212,11 @@ describe('rankedSchedules', () => {
 })
 
 describe('dedupeSections', () => {
+  it('keeps opposite alternating-week sections distinct at the same hour', () => {
+    const first = { ...lec(1, 9, 10, 'TUT0001'), times: [{ ...lec(1, 9, 10).times[0], repetition: 'BI_WEEKLY', repetitionTime: 'FIRST_AND_THIRD_WEEK' }] }
+    const second = { ...lec(1, 9, 10, 'TUT0002'), times: [{ ...lec(1, 9, 10).times[0], repetition: 'BI_WEEKLY', repetitionTime: 'SECOND_AND_FOURTH_WEEK' }] }
+    expect(dedupeSections([first, second])).toHaveLength(2)
+  })
   it('collapses sections with identical meeting times into one representative', () => {
     const pool = [
       lec(1, 9, 10, 'TUT0101'), lec(1, 9, 10, 'TUT0102'), lec(1, 9, 10, 'TUT0103'),

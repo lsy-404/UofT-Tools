@@ -36,8 +36,23 @@ jobs:
       - name: Scrape UTM course prerequisites and exclusions
         run: python scripts/planner/scrape_utm_courses.py
 
-      - name: Scrape TTB course timetable (UTM)
+      - name: Scrape supported Arts & Science and UTSC catalogs
+        run: python scripts/planner/scrape_campus_catalogs.py
+
+      - name: Scrape TTB course timetables (ERIN, ARTSC, SCAR)
         run: python scripts/planner/scrape_ttb_courses.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate refreshed data and build
+        run: |
+          npm ci
+          npm test
+          npm run build
+          python -m unittest discover -s test -p '*_test.py'
 
       - name: Commit and push updated planner data (if changed)
         run: |

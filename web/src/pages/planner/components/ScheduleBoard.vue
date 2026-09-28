@@ -31,6 +31,15 @@ const showSharedHint = computed(() =>
           </div>
         </div>
         <ScheduleGrid :results="term.results" />
+        <template v-for="result in term.results" :key="result.code">
+          <details v-if="!result.missing && (result.notes?.length || result.sections?.some(section => section.notes?.length))" class="timetable-notes">
+            <summary>{{ result.code }} · official timetable notes</summary>
+            <p v-for="(note, i) in result.notes || []" :key="'course-' + i">{{ note.text }}</p>
+            <template v-for="section in result.sections || []" :key="section.name">
+              <p v-for="(note, i) in section.notes || []" :key="i"><b>{{ section.name }}:</b> {{ note.text }}</p>
+            </template>
+          </details>
+        </template>
       </div>
     </div>
   </div>
@@ -42,6 +51,8 @@ const showSharedHint = computed(() =>
 .bv-hint { font-size: 11px; color: var(--gray-500); margin-left: auto; }
 .term-cols { display: flex; gap: 14px; align-items: flex-start; }
 .term-col { flex: 1 1 0; min-width: 0; }
+.timetable-notes { margin-top: 8px; font-size: 11px; color: var(--gray-700); }
+.timetable-notes p { margin: 6px 0; line-height: 1.45; }
 .term-head {
   display: flex; align-items: baseline; gap: 8px; font-size: 13px; font-weight: 700;
   color: var(--blue); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid var(--gray-200);

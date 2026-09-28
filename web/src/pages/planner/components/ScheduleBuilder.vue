@@ -1,10 +1,11 @@
 <script setup>
 import {
-  state, pendingCourses, scopes, courseOfferings, scheduledCodes, scheduleWarnings, scopePublished,
+  state, pendingCourses, scopes, courseOfferings, scheduledCodes, scheduleWarnings, scopePublished, timetableSources,
   onScopeChange, isScheduledIn, toggleScheduledTerm, dayPref, cycleDayPref,
   toggleFriends, addFriend, removeFriend, renameFriend, addFriendCourse, removeFriendCourse,
 } from '../store.js'
 import CoursePicker from './CoursePicker.vue'
+import HardConstraints from './HardConstraints.vue'
 
 const DAYS = [
   { d: 1, label: 'Mon' }, { d: 2, label: 'Tue' }, { d: 3, label: 'Wed' },
@@ -12,7 +13,7 @@ const DAYS = [
 ]
 const WARN_TEXT = {
   conflict: (w) => `${w.code}: time conflict`,
-  missing: (w) => `${w.code}: not offered in ${w.term}`,
+  missing: (w) => `${w.code}: ${w.reason || `not offered in ${w.term}`}`,
   tba: (w) => `${w.code}: no meeting times posted yet (${w.term}, TBA)`,
   friend: (w) => `${w.code}: can't fit their own courses around the shared ones (${w.term})`,
 }
@@ -27,6 +28,18 @@ const WARN_TEXT = {
         <option v-if="!scopes.length" value="">No sessions available</option>
         <option v-for="s in scopes" :key="s.id" :value="s.id">{{ s.label }}</option>
       </select>
+      <details>
+        <summary>Timetable sources and snapshot dates</summary>
+        <p>UTSG: Arts & Science only. Timetable Builder is not live ACORN registration. Verify enrolment restrictions and changes before enrolling.</p>
+        <div v-for="term in timetableSources" :key="term.label">
+          <b>{{ term.label }}</b>
+          <div v-for="source in term.sources" :key="source.divisions?.join(',')">
+            {{ source.divisions?.join(', ') || 'Legacy snapshot' }}: {{ source.courseCount }} offerings · {{ source.retrievedAt || 'date unrecorded' }}
+          </div>
+          <p v-if="term.unavailable.length">Data unavailable for {{ term.unavailable.join(', ') }}. Missing data does not mean no courses are offered.</p>
+        </div>
+        <a href="https://ttb.utoronto.ca/" target="_blank" rel="noopener">Official Timetable Builder</a>
+      </details>
 
       <div class="pref-head">Preferences</div>
 
@@ -97,7 +110,7 @@ const WARN_TEXT = {
       <label>Courses to Schedule</label>
       <div class="course-picks">
         <div v-if="!pendingCourses.length" class="sched-empty">
-          No planned courses yet. Mark courses as &ldquo;Plan&rdquo; in the Program Planner tab to schedule them.
+          No planned or current courses yet. Mark courses as &ldquo;Plan&rdquo; or &ldquo;Taking&rdquo; in the Program Planner tab to schedule them.
         </div>
         <div
           v-for="c in pendingCourses"
@@ -121,6 +134,8 @@ const WARN_TEXT = {
           </span>
         </div>
       </div>
+
+      <HardConstraints />
 
       <label class="friend-toggle">
         <input type="checkbox" :checked="state.friends.enabled" @change="toggleFriends($event.target.checked)">

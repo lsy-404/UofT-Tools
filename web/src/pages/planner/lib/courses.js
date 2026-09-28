@@ -1,16 +1,14 @@
+import { levelOf } from './campuses.js'
+import { academicCredit, requirementRole } from './course-details.js'
 // Pure helpers for program/course logic — no DOM, no Vue. Unit-testable.
 
-export const COURSE_RE = /([A-Z]{2,4}\d{3}[HY]\d)/g
+export const COURSE_RE = /((?:[A-Z]{2,4}\d{3}|[A-Z]{3}[A-D]\d{2})[HY][0135])/g
 
-export function courseYear(code) {
-  const m = code.match(/\d{3}/)
-  if (!m) return null
-  return Math.floor(parseInt(m[0]) / 100)
-}
+export function courseYear(code) { return levelOf(code) || null }
 
 // Credit weight of a course code: Y courses count 1.0, H (half) courses 0.5.
-export function courseCredit(code) {
-  return /Y\d$/i.test(code || '') ? 1.0 : 0.5
+export function courseCredit(code, meta) {
+  return academicCredit(code, meta)
 }
 
 // Compact marker for a requirement section: a year (Y1/Y2/Y3+) or null.
@@ -53,7 +51,7 @@ export function buildCourseList(selectedPrograms, extraCourses = []) {
   const courseMap = new Map()
   for (const prog of selectedPrograms) {
     for (const code of (prog.courses || [])) {
-      if (!courseMap.has(code)) courseMap.set(code, { code, programs: [], reqLabels: new Set() })
+      if (!courseMap.has(code)) courseMap.set(code, { code, programs: [], reqLabels: new Set(), requirements: [] })
       courseMap.get(code).programs.push({
         name: prog.name.split(' - ')[0],
         type: prog.type,
@@ -74,6 +72,10 @@ export function buildCourseList(selectedPrograms, extraCourses = []) {
       for (const kind of ['completion', 'enrolment']) {
         let heading = ''
         for (const b of (rg[kind]?.blocks || [])) {
+          for (const code of new Set([...(b.codes || []), ...(b.eligibleCourses || [])])) {
+            const entry = courseMap.get(code)
+            if (entry) entry.requirements.push({ program: short, role: b.excludedCodes?.includes(code) ? 'excluded' : b.codeRoles?.[code] || requirementRole(b, kind), text: b.text, groupId: b.groupId, source: prog.source })
+          }
           if (b.heading) { heading = b.lead || b.text; continue }
           const marker = kind === 'enrolment' ? 'Enrol' : yearMarker(b.lead || heading)
           for (const code of (b.codes || [])) note(code, marker)
@@ -87,7 +89,7 @@ export function buildCourseList(selectedPrograms, extraCourses = []) {
   }
   for (const code of extraCourses) {
     if (!courseMap.has(code)) {
-      courseMap.set(code, { code, programs: [{ name: 'Added', type: '', added: true }], reqLabels: new Set(), added: true })
+      courseMap.set(code, { code, programs: [{ name: 'Added', type: '', added: true }], reqLabels: new Set(), requirements: [], added: true })
     } else {
       courseMap.get(code).added = true
     }
@@ -192,7 +194,7 @@ export function computeSuggestions(selectedPrograms, programs) {
 export function prereqTokens(text, getStatus) {
   const tokens = []
   let last = 0
-  const re = /([A-Z]{2,4}\d{3}[HY]\d)/g
+  const re = /((?:[A-Z]{2,4}\d{3}|[A-Z]{3}[A-D]\d{2})[HY][0135])/g
   let m
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) tokens.push({ course: false, text: text.slice(last, m.index) })

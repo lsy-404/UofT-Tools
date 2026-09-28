@@ -1,16 +1,11 @@
+import { CAMPUSES, VALID_COURSE, progress, combination, degreeConfiguration } from './lib/campuses.js'
 import { reactive, computed, watch } from 'vue'
-import { buildCourseList, computeLegality, computeSuggestions, courseCredit, courseYear, computeDistribution } from './lib/courses.js'
+import { buildCourseList, computeSuggestions } from './lib/courses.js'
 import {
   buildScopes, rankedSchedules,
   buildCourseAvailability, badgeTerms,
   campusOf,
 } from './lib/scheduling.js'
-
-// Subject+number+weight key shared by a course's campus variants (CSC108H5 ↔
-// CSC108H1 → 'CSC108H'); the trailing campus digit is what differs.
-const baseCode = (code) => (code || '').replace(/(\d)$/, '')
-// The "H1"/"Y1" campus suffix shown on a cross-campus pill.
-const campusSuffix = (code) => (/[HY]\d$/.exec(code || '') || ['H5'])[0]
 
 const BASE = ''
 const LS_STATUS = 'utm_course_status'
@@ -18,25 +13,49 @@ const LS_PROGRAMS = 'utm_selected_programs'
 const LS_COMPLETED = 'utm_completed'
 const LS_EXTRA = 'utm_extra_courses'
 const LS_SCHEDULE = 'utm_schedule'
+const profileKey = key => state.campus === 'utm' ? key : `${state.campus}_${key}`
 const LS_TTB_WARNING = 'utm_ttb_warning_seen'
+export const defaultConstraints = () => ({
+  sections: {}, unavailable: [], earliest: '', latest: '', excludedInstructors: [],
+  lunch: { enabled: false, start: '11:00', end: '14:00', minutes: 60 }, online: 'any',
+})
+const defaultPrefs = () => ({ density: 'any', time: 'any', freeDays: [], busyDays: [], zzOverlap: true, zzWithReg: false, commute: { enabled: true, hours: 1 }, constraints: defaultConstraints() })
+
+function restoredPrefs(saved = {}) {
+  const defaults = defaultPrefs()
+  const old = saved && typeof saved === 'object' ? saved : {}
+  const c = old.constraints && typeof old.constraints === 'object' ? old.constraints : {}
+  return {
+    ...defaults, ...old,
+    commute: { ...defaults.commute, ...(old.commute || {}) },
+    constraints: {
+      ...defaults.constraints, ...c,
+      sections: c.sections && typeof c.sections === 'object' && !Array.isArray(c.sections) ? c.sections : {},
+      unavailable: Array.isArray(c.unavailable) ? c.unavailable : [],
+      excludedInstructors: Array.isArray(c.excludedInstructors) ? c.excludedInstructors : [],
+      lunch: { ...defaults.constraints.lunch, ...(c.lunch || {}) },
+    },
+  }
+}
 
 function saveSchedule() {
   try {
-    localStorage.setItem(LS_SCHEDULE, JSON.stringify({
+    localStorage.setItem(profileKey(LS_SCHEDULE), JSON.stringify({
       scopeId: state.scopeId, scheduled: state.scheduled, prefs: state.prefs,
     }))
   } catch { /* ignore quota errors */ }
 }
 function loadSchedule() {
-  try { return JSON.parse(localStorage.getItem(LS_SCHEDULE) || '{}') } catch { return {} }
+  try { return JSON.parse(localStorage.getItem(profileKey(LS_SCHEDULE)) || '{}') } catch { return {} }
 }
 
-function loadCourseStatus() {
+function loadCourseStatus(campus = 'utm') {
   const obj = {}
   try {
-    const m = JSON.parse(localStorage.getItem(LS_STATUS) || '{}')
-    for (const [k, v] of Object.entries(m)) obj[k] = +v
-    for (const c of JSON.parse(localStorage.getItem(LS_COMPLETED) || '[]')) {
+    const raw = localStorage.getItem(campus === 'utm' ? LS_STATUS : `${campus}_${LS_STATUS}`)
+    const m = JSON.parse(raw || '{}')
+    for (const [k, v] of Object.entries(m)) if (VALID_COURSE.test(k) && [1, 2, 3].includes(+v)) obj[k] = +v
+    for (const c of raw == null ? JSON.parse(localStorage.getItem(campus === 'utm' ? LS_COMPLETED : `${campus}_${LS_COMPLETED}`) || '[]') : []) {
       if (obj[c] === undefined) obj[c] = 3
     }
   } catch {
@@ -46,6 +65,10 @@ function loadCourseStatus() {
 }
 
 export const state = reactive({
+  campus: 'utm',
+  loading: false,
+  loadError: '',
+  catalogs: {},
   programs: null,
   courses: null,
   sessions: [],
@@ -66,7 +89,7 @@ export const state = reactive({
 
   // commute: cross-campus buffer between back-to-back classes on different
   // campuses (St. George/UTM/UTSC). enabled by default at 1 hour; hours ∈ {0,1,2}.
-  prefs: { density: 'any', time: 'any', freeDays: [], busyDays: [], zzOverlap: true, zzWithReg: false, commute: { enabled: true, hours: 1 } },
+  prefs: defaultPrefs(),
   scopeId: '',                 // selected scheduling scope (see lib/scheduling buildScopes)
   timetables: {},              // sessionValue → timetable data (lazy cache)
   scheduled: {},               // code → [termValue,…] : which segment(s) to schedule per course
@@ -96,9 +119,9 @@ export function dismissTtbWarning() {
 }
 
 // ── Derived state (reactive) ──
-export const courseList = computed(() => buildCourseList(state.selectedPrograms, state.extraCourses))
+export const courseList = computed(() => buildCourseList(state.selectedPrograms, [...new Set([...state.extraCourses, ...Object.keys(state.courseStatus).filter(c => state.courseStatus[c] >= 1)])]))
 export const activePrograms = computed(() => state.selectedPrograms.filter(p => !p.intention))
-export const legality = computed(() => computeLegality(activePrograms.value))
+export const legality = computed(() => combination(activePrograms.value, state.campus))
 
 // Counts of active programs by type (Specialist / Major / Minor).
 export const programCounts = computed(() => {
@@ -115,14 +138,14 @@ export const filteredSections = computed(() => {
   if (!state.programs) return []
   const f = state.sectionFilter.toLowerCase()
   return state.programs.sections.filter(s =>
-    !f || (s.name || '').toLowerCase().includes(f) || s.slug.toLowerCase().includes(f),
+    !f || (s.name || '').toLowerCase().includes(f) || s.slug.toLowerCase().includes(f) || s.programs.some(p => `${p.name} ${p.code}`.toLowerCase().includes(f)),
   )
 })
 export const popupSection = computed(() =>
   state.programs?.sections.find(s => s.slug === state.activeSectionSlug) || null,
 )
-// Only courses explicitly marked "Plan" (status 1) are schedulable / shown on the board.
-export const pendingCourses = computed(() => courseList.value.filter(c => getStatus(c.code) === 1))
+// Planned and currently taken courses can be scheduled.
+export const pendingCourses = computed(() => courseList.value.filter(c => [1, 2].includes(getStatus(c.code))))
 
 // Codes that belong to a selected program (used to tell apart "outside" courses).
 export const programCourseCodes = computed(() => {
@@ -140,63 +163,28 @@ export const lockedExtraCourses = computed(() => {
     .sort()
 })
 
-// UTM degree progress (total credits + Sci/SSc/Hum distribution) over every
-// course the student has marked Plan/Taking/Done.
-export const degreeProgress = computed(() => {
-  const codes = Object.keys(state.courseStatus).filter(c => state.courseStatus[c] >= 1)
-  const dist = computeDistribution(codes, courseCredit, c => state.courses?.[c]?.distribution || '')
-  let upper = 0
-  let upper2 = 0
-  for (const code of codes) {
-    const y = courseYear(code) || 0
-    if (y >= 2) upper2 += courseCredit(code)
-    if (y >= 3) upper += courseCredit(code)
-  }
-  return { ...dist, upper, upper2 }
-})
-
-// Same as degreeProgress but only counts completed/in-progress courses (status >= 2).
-export const degreeProgressActual = computed(() => {
-  const codes = Object.keys(state.courseStatus).filter(c => state.courseStatus[c] >= 2)
-  const dist = computeDistribution(codes, courseCredit, c => state.courses?.[c]?.distribution || '')
-  let upper = 0
-  let upper2 = 0
-  for (const code of codes) {
-    const y = courseYear(code) || 0
-    if (y >= 2) upper2 += courseCredit(code)
-    if (y >= 3) upper += courseCredit(code)
-  }
-  return { ...dist, upper, upper2 }
-})
-
-// Per-status credit breakdown: plan (1) / taking (2) / done (3) / all.
-export const degreeBreakdown = computed(() => {
-  const byStatus = { 1: [], 2: [], 3: [] }
-  for (const [code, status] of Object.entries(state.courseStatus)) {
-    if (status >= 1 && status <= 3) byStatus[status].push(code)
-  }
-  const compute = (codes) => {
-    const dist = computeDistribution(codes, courseCredit, c => state.courses?.[c]?.distribution || '')
-    let upper = 0
-    let upper2 = 0
-    for (const code of codes) {
-      const y = courseYear(code) || 0
-      if (y >= 2) upper2 += courseCredit(code)
-      if (y >= 3) upper += courseCredit(code)
-    }
-    return { total: dist.total, upper, upper2, cats: dist.cats, satisfied: dist.satisfied }
-  }
-  return {
-    planned: compute(byStatus[1]),
-    taking: compute(byStatus[2]),
-    done: compute(byStatus[3]),
-    all: compute([...byStatus[1], ...byStatus[2], ...byStatus[3]]),
-  }
-})
+export const campusConfig = computed(() => degreeConfiguration(state.campus, activePrograms.value))
+export const degreeProgress = computed(() => progress(state.campus, state.courseStatus, state.courses))
+export const degreeProgressActual = computed(() => progress(state.campus, state.courseStatus, state.courses, [2, 3]))
+export const degreeBreakdown = computed(() => ({
+  planned: progress(state.campus, state.courseStatus, state.courses, [1]),
+  taking: progress(state.campus, state.courseStatus, state.courses, [2]),
+  done: progress(state.campus, state.courseStatus, state.courses, [3]),
+  all: degreeProgress.value,
+}))
 
 // ── Scheduling scopes / availability ──
 export const scopes = computed(() => buildScopes(state.sessions))
 export const currentScope = computed(() => scopes.value.find(s => s.id === state.scopeId) || null)
+export const timetableSources = computed(() => {
+  const scope = currentScope.value
+  if (!scope) return []
+  return [...scope.terms, ...(scope.full ? [scope.full] : [])].map(term => ({
+    label: term.label,
+    sources: state.timetables[term.value]?.sources || [],
+    unavailable: state.timetables[term.value]?.unavailable || [],
+  }))
+})
 
 // code → [term labels it is offered in] for the selected scope (after its
 // timetables are loaded). Lets the picker show availability before scheduling.
@@ -218,28 +206,14 @@ export const courseOfferings = computed(() => {
     for (const c of tt.courses) {
       if (!raw[c.code]) raw[c.code] = []
       if (raw[c.code].some(t => t.value === term.value)) continue
-      const timed = (c.sections || []).some(s => (s.times || []).some(t => t.day >= 1 && t.day <= 5 && t.endMs > t.startMs))
+      const timed = (c.sections || []).some(s => (s.times || []).some(t => t.day >= 1 && t.day <= 6 && t.endMs > t.startMs))
       raw[c.code].push({ value: term.value, label: term.label, tba: !timed })
     }
   }
-  // 2) Index codes by their cross-campus base so a UTM course can find its
-  //    St. George (H1) twin.
-  const byBase = {}
-  for (const code of Object.keys(raw)) (byBase[baseCode(code)] = byBase[baseCode(code)] || []).push(code)
-  // 3) Each UTM (campus 5) course shows its own pills plus an extra pill per
-  //    term for any same-named course offered on another campus, labelled with
-  //    that campus suffix (e.g. "Fall H1"). Each pill carries the code it adds.
+  // Each course keeps its own identity. Similar course numbers are not equivalencies.
   const map = {}
-  for (const code of Object.keys(raw)) {
-    if (campusOf(code) !== '5') continue
-    const pills = raw[code].map(p => ({ ...p, code, campus: '5' }))
-    for (const sib of (byBase[baseCode(code)] || [])) {
-      if (sib === code || campusOf(sib) === '5') continue
-      for (const p of raw[sib]) {
-        pills.push({ value: p.value, label: `${p.label} ${campusSuffix(sib)}`, tba: p.tba, code: sib, campus: campusOf(sib) })
-      }
-    }
-    map[code] = pills
+  for (const [code, terms] of Object.entries(raw)) {
+    map[code] = terms.map(p => ({ ...p, code, campus: campusOf(code) }))
   }
   return map
 })
@@ -270,14 +244,14 @@ export const scheduleSelection = computed(() => ({
 export const scheduleWarnings = computed(() => {
   const out = []
   const seen = { conflict: new Set(), missing: new Set(), tba: new Set(), friend: new Set() }
-  const add = (type, code, term) => {
+  const add = (type, code, term, reason) => {
     if (seen[type].has(code)) return
     seen[type].add(code)
-    out.push({ type, code, term })
+    out.push({ type, code, term, reason })
   }
   for (const term of state.board) {
     for (const r of term.results) {
-      if (r.missing) add('missing', r.code, term.label)
+      if (r.missing) add('missing', r.code, term.label, r.reason)
       else if (r.conflict) add('conflict', r.code)
     }
     for (const code of (term.tba || [])) add('tba', code, term.label)
@@ -290,7 +264,7 @@ export const courseAvailability = availability
 // ── Status helpers ──
 export function getStatus(code) { return state.courseStatus[code] || 0 }
 export function isDone(code) { return getStatus(code) === 3 }
-export function isSatisfied(code) { return getStatus(code) >= 1 }
+export function isSatisfied(code) { return getStatus(code) === 3 && code.endsWith(CAMPUSES[state.campus].suffix) && !!state.courses?.[code] && !state.courses[code].timetableOnly }
 
 export function setCourseStatus(code, status) {
   if (status === 0) delete state.courseStatus[code]
@@ -300,26 +274,29 @@ export function setCourseStatus(code, status) {
 
 // ── Persistence ──
 export function savePlannerState() {
-  localStorage.setItem(LS_STATUS, JSON.stringify({ ...state.courseStatus }))
-  localStorage.setItem(LS_PROGRAMS, JSON.stringify(
+  localStorage.setItem(profileKey(LS_STATUS), JSON.stringify({ ...state.courseStatus }))
+  localStorage.setItem(profileKey(LS_PROGRAMS), JSON.stringify(
     state.selectedPrograms.map(p => ({ id: p.id, intention: !!p.intention })),
   ))
-  localStorage.setItem(LS_EXTRA, JSON.stringify(state.extraCourses))
+  localStorage.setItem(profileKey(LS_EXTRA), JSON.stringify(state.extraCourses))
 }
 
 export function loadSavedPlanner() {
-  const saved = JSON.parse(localStorage.getItem(LS_PROGRAMS) || '[]')
+  let saved = []
+  try { saved = JSON.parse(localStorage.getItem(profileKey(LS_PROGRAMS)) || '[]') } catch { /* corrupted storage */ }
+  if (!Array.isArray(saved)) saved = []
   state.selectedPrograms = []
   for (const s of saved) {
     const p = findProgramById(s.id)
     if (p) state.selectedPrograms.push({ ...p, intention: !!s.intention })
   }
   try {
-    state.extraCourses = JSON.parse(localStorage.getItem(LS_EXTRA) || '[]')
+    const extra = JSON.parse(localStorage.getItem(profileKey(LS_EXTRA)) || '[]')
+    state.extraCourses = Array.isArray(extra) ? extra.filter(isValidCourseCode) : []
   } catch { state.extraCourses = [] }
 }
 
-const COURSE_CODE_RE = /^[A-Z]{2,4}\d{3}[HY]\d$/
+const COURSE_CODE_RE = VALID_COURSE
 
 export function isValidCourseCode(code) {
   return COURSE_CODE_RE.test((code || '').toUpperCase().replace(/\s+/g, ''))
@@ -380,11 +357,19 @@ export function closePopup() { state.popupOpen = false }
 
 // ── Import ──
 export function applyImported(data) {
+  if (!data || typeof data !== 'object') throw new Error('Invalid planner file')
+  const campus = data.campus || 'utm'
+  if (campus !== state.campus) throw new Error(`Switch to ${CAMPUSES[campus]?.name || campus} before importing this plan. Legacy files belong to UTM.`)
+  if (data.selectedPrograms && (!Array.isArray(data.selectedPrograms) || !data.selectedPrograms.every(p => p && typeof p.id === 'string'))) throw new Error('Invalid programs')
+  if (data.extraCourses && (!Array.isArray(data.extraCourses) || !data.extraCourses.every(isValidCourseCode))) throw new Error('Invalid extra courses')
   if (data.courseStatus) {
     const obj = {}
-    for (const [k, v] of Object.entries(data.courseStatus)) obj[k] = +v
+    for (const [k, v] of Object.entries(data.courseStatus)) {
+      if (!isValidCourseCode(k) || ![0, 1, 2, 3].includes(v)) throw new Error('Invalid course status')
+      obj[k] = v
+    }
     state.courseStatus = obj
-    localStorage.setItem(LS_STATUS, JSON.stringify(data.courseStatus))
+    localStorage.setItem(profileKey(LS_STATUS), JSON.stringify(data.courseStatus))
   }
   if (data.selectedPrograms && state.programs) {
     state.selectedPrograms = []
@@ -393,6 +378,7 @@ export function applyImported(data) {
       if (p) state.selectedPrograms.push({ ...p, intention: !!s.intention })
     }
   }
+  if (data.extraCourses) state.extraCourses = [...data.extraCourses]
   savePlannerState()
 }
 
@@ -418,12 +404,8 @@ export function toggleScheduledTerm(code, termValue) {
 // Term-segment choices are kept (a course may be scheduled under another scope).
 export function syncScheduledCourses() {
   const pending = new Set(pendingCourses.value.map(p => p.code))
-  const pendingBase = new Set(pendingCourses.value.map(p => baseCode(p.code)))
   for (const code of Object.keys(state.scheduled)) {
-    if (pending.has(code)) continue
-    // Keep a cross-campus (e.g. H1) pick while its same-named UTM course stays planned.
-    if (campusOf(code) !== '5' && pendingBase.has(baseCode(code))) continue
-    delete state.scheduled[code]
+    if (!pending.has(code)) delete state.scheduled[code]
   }
   queueScheduleRefresh()
 }
@@ -431,15 +413,14 @@ export function syncScheduledCourses() {
 async function ensureTimetable(value) {
   if (state.timetables[value]) return state.timetables[value]
   const fetchJson = (file) => fetch(BASE + `/planner/data/${file}`).then(r => r.ok ? r.json() : null).catch(() => null)
-  // UTM is the primary timetable; St. George (H1) same-named courses are merged
-  // in so they can be scheduled as extra cross-campus pills. They share the
-  // university-wide session codes, so the files line up 1:1.
-  const [utm, stg] = await Promise.all([
-    fetchJson(`utm-timetable-${value}.json`),
-    fetchJson(`stg-timetable-${value}.json`),
-  ])
-  const base = utm || { courses: [], courseCount: 0 }
-  const data = { ...base, courses: [...(base.courses || []), ...((stg && stg.courses) || [])] }
+  const results = await Promise.all(['utm', 'stg', 'utsc'].map(c => fetchJson(`${c}-timetable-${value}.json`)))
+  const courses = results.flatMap(d => d?.courses || [])
+  const data = { courses, courseCount: courses.length, sources: results.filter(Boolean),
+    unavailable: ['utm', 'stg', 'utsc'].filter((c, i) => !results[i]) }
+  // Offer timetable titles in the picker without treating them as verified calendar metadata.
+  for (const c of courses) {
+    if (!state.courses?.[c.code]) (state.courses ||= {})[c.code] = { code: c.code, name: c.name, timetableOnly: true }
+  }
   state.timetables[value] = data
   queueScheduleRefresh()
   return data
@@ -483,6 +464,7 @@ function prefsObj() {
     zzOverlap: state.prefs.zzOverlap,
     zzWithReg: state.prefs.zzWithReg,
     commute: { enabled: state.prefs.commute?.enabled !== false, hours: Number(state.prefs.commute?.hours) || 0 },
+    constraints: JSON.parse(JSON.stringify(state.prefs.constraints || defaultConstraints())),
   }
 }
 
@@ -506,11 +488,9 @@ export function cycleDayPref(d) {
 let optionsCache = {}
 
 function columnCodes(scope, term, fullCodes, fullVal) {
-  const tt = mergedColumnTimetable(scope, term)
-  const offered = new Set((tt.courses || []).map(c => c.code))
-  return [...offered].filter(code => {
+  return Object.keys(state.scheduled).filter(code => {
     const sel = state.scheduled[code] || []
-    return sel.includes(term.value) || (fullCodes.has(code) && fullVal && sel.includes(fullVal))
+    return sel.includes(term.value) || (fullVal && sel.includes(fullVal))
   })
 }
 
@@ -527,7 +507,7 @@ function computeOptions(scope) {
     const tt = mergedColumnTimetable(scope, term)
     const inTerm = columnCodes(scope, term, fullCodes, fullVal)
     optionsCache[term.value] = inTerm.length
-      ? rankedSchedules(tt, inTerm, prefsObj(), friends)
+      ? rankedSchedules(tt, inTerm, prefsObj(), friends, term.value)
       : [{ results: [], conflicts: 0, score: 0, infeasibleFriends: [] }]
   }
 }
@@ -547,6 +527,7 @@ function renderSoloBoard(scope) {
       published: (tt.courseCount || 0) > 0, tba,
       optionIndex: i, optionCount: options.length, conflicts: chosen.conflicts || 0,
       infeasibleFriends: chosen.infeasibleFriends || [],
+      constraintFailure: !!chosen.constraintFailure, constraintReason: chosen.reason || '',
     }
   })
 }
@@ -562,7 +543,7 @@ export function setAlt(termValue, i) {
 
 // A scheduled result is renderable only if some section has a weekday meeting time.
 function hasRenderableTimes(r) {
-  return (r.sections || []).some(s => (s.times || []).some(t => t.day >= 1 && t.day <= 5 && t.endMs > t.startMs))
+  return (r.sections || []).some(s => (s.times || []).some(t => t.day >= 1 && t.day <= 6 && t.endMs > t.startMs))
 }
 
 let refreshTimer = null
@@ -591,7 +572,10 @@ export async function refreshSchedule() {
   renderSoloBoard(scope)
 
   const unpublished = state.board.some(t => !t.published)
-  state.schedNotice = unpublished ? 'One or more terms have no published timetable yet.' : ''
+  const infeasible = state.board.find(t => t.constraintFailure)
+  state.schedNotice = infeasible
+    ? `${infeasible.label}: ${infeasible.constraintReason || 'No schedule satisfies hard constraints'}. Adjust the hard constraints to see options.`
+    : unpublished ? 'One or more terms have no published timetable yet.' : ''
 }
 
 export const generateSchedule = refreshSchedule
@@ -639,31 +623,78 @@ export function removeFriendCourse(id, code) {
 }
 
 watch(scheduleSelection, () => {
+  if (state.loading) return
   saveSchedule()
   queueScheduleRefresh()
 }, { deep: true })
 
 // ── Init ──
-export async function init() {
-  const [progs, sess] = await Promise.all([
-    fetch(BASE + '/planner/data/utm-programs.json').then(r => r.json()),
-    fetch(BASE + '/planner/data/utm-sessions.json').then(r => r.json()),
-  ])
-  state.programs = progs
-  state.sessions = sess
-  loadSavedPlanner()
-  const sc = buildScopes(sess)
-  // Restore the saved scheduling range + segment selections + preferences.
-  const saved = loadSchedule()
-  if (saved.prefs && typeof saved.prefs === 'object') Object.assign(state.prefs, saved.prefs)
-  const validScope = saved.scopeId && sc.find(s => s.id === saved.scopeId)
-  state.scopeId = validScope ? saved.scopeId : (sc.length ? sc[0].id : '')
-  if (validScope && saved.scheduled && typeof saved.scheduled === 'object') state.scheduled = saved.scheduled
-  if (state.scopeId) { await ensureScopeTimetables(); queueScheduleRefresh() }
+let campusLoadRun = 0
+export async function switchCampus(campus) {
+  if (!CAMPUSES[campus]) throw new Error('Unsupported campus')
+  const run = ++campusLoadRun
+  savePlannerState()
+  saveSchedule()
+  state.loading = true
+  state.loadError = ''
+  try {
+    const programs = state.catalogs[campus] || await fetch(BASE + `/planner/data/${campus}-programs.json`).then(r => {
+      if (!r.ok) throw new Error('Catalog unavailable')
+      return r.json()
+    })
+    if (!Array.isArray(programs.sections)) throw new Error('Invalid catalog')
+    if (run !== campusLoadRun) return
+    state.catalogs[campus] = programs
+    state.campus = campus
+    localStorage.setItem('uoft_home_campus', campus)
+    state.programs = programs
+    state.courseStatus = loadCourseStatus(campus)
+    state.sectionFilter = ''
+    state.activeSectionSlug = null
+    state.popupOpen = false
+    loadSavedPlanner()
+    const saved = loadSchedule()
+    const sc = buildScopes(state.sessions)
+    state.scopeId = sc.some(s => s.id === saved.scopeId) ? saved.scopeId : sc[0]?.id || ''
+    state.scheduled = saved.scheduled || {}
+    state.prefs = restoredPrefs(saved.prefs)
+    state.board = []
+    await ensureScopeTimetables()
+    queueScheduleRefresh()
+  } catch (error) {
+    if (run === campusLoadRun) state.loadError = `Could not load ${CAMPUSES[campus].name}: ${error.message}. Your current plan is retained.`
+  } finally {
+    if (run === campusLoadRun) state.loading = false
+  }
+}
 
-  // Background, non-blocking: prereq/exclusion metadata.
-  fetch(BASE + '/planner/data/utm-courses.json')
-    .then(r => r.ok ? r.json() : null)
-    .then(data => { if (data) state.courses = data })
-    .catch(() => {})
+export async function init() {
+  state.loading = true
+  try {
+    const response = await fetch(BASE + '/planner/data/utm-sessions.json')
+    if (!response.ok) throw new Error('Session index unavailable')
+    state.sessions = await response.json()
+    const catalogs = await Promise.all(['utm', 'stg', 'utsc'].map(async campus => {
+      const r = await fetch(BASE + `/planner/data/${campus}-courses.json`)
+      return r.ok ? r.json() : {}
+    }))
+    state.courses = Object.assign({}, ...catalogs)
+    const campus = localStorage.getItem('uoft_home_campus') || 'utm'
+    // Do not overwrite saved UTM state during initial loading.
+    state.campus = CAMPUSES[campus] ? campus : 'utm'
+    state.courseStatus = loadCourseStatus(state.campus)
+    const r = await fetch(BASE + `/planner/data/${state.campus}-programs.json`)
+    if (!r.ok) throw new Error('Program catalog unavailable')
+    state.programs = await r.json()
+    state.catalogs[state.campus] = state.programs
+    loadSavedPlanner()
+    const saved = loadSchedule()
+    const sc = buildScopes(state.sessions)
+    state.scopeId = sc.some(s => s.id === saved.scopeId) ? saved.scopeId : sc[0]?.id || ''
+    state.scheduled = saved.scheduled || {}
+    state.prefs = restoredPrefs(saved.prefs)
+    await ensureScopeTimetables()
+    queueScheduleRefresh()
+  } catch (error) { state.loadError = `Planner data could not be loaded: ${error.message}` }
+  finally { state.loading = false }
 }

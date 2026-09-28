@@ -1,14 +1,16 @@
 // Browser file import/export helpers for planner state.
 
-export function exportPlanner(courseStatus, selectedPrograms) {
+export function exportPlanner(courseStatus, selectedPrograms, campus = 'utm', extraCourses = []) {
   const data = {
-    version: 2,
+    version: 3,
+    campus,
+    extraCourses: [...extraCourses],
     courseStatus: { ...courseStatus },
     selectedPrograms: selectedPrograms.map(p => ({ id: p.id, intention: p.intention })),
   }
   const a = Object.assign(document.createElement('a'), {
     href: URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })),
-    download: 'utm-planner.json',
+    download: `${campus}-planner.json`,
   })
   a.click()
   URL.revokeObjectURL(a.href)

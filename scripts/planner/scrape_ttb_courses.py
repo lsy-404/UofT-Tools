@@ -1,16 +1,14 @@
-"""
-Scrape UTM course timetable from TTB API and output static JSON files.
-Outputs:
-  planner/data/utm-timetable-{session}.json  (UTM / ERIN — one per session)
-  planner/data/stg-timetable-{session}.json  (St. George / Arts & Sci — only
-      courses whose subject+number+weight also exist at UTM, so a student can
-      schedule the downtown "H1" twin of a UTM course as a cross-campus pill)
+"""Fetch complete TTB offerings for ERIN, ARTSC and SCAR.
+
+Never infer equivalence from matching course numbers. Fetch all responses
+before replacing published snapshots; reject incomplete pagination.
 """
 
-import re
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
+from bs4 import BeautifulSoup
 
 # Make the shared ``common`` package importable when run as a script.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -20,10 +18,7 @@ from common.paths import PLANNER_DATA_DIR as OUTPUT_DIR
 
 REFERENCE   = "https://api.easi.utoronto.ca/ttb/reference-data"
 COURSES_API = "https://api.easi.utoronto.ca/ttb/getPageableCourses"
-UTM_DIV     = "ERIN"
-# St. George divisions to also pull (Faculty of Arts & Science is where UTM
-# students cross-register). Add more division codes here to widen coverage.
-STG_DIVS    = ["ARTSC"]
+CAMPUS_DIVISIONS = {"utm": ["ERIN"], "stg": ["ARTSC"], "utsc": ["SCAR"]}
 PAGE_SIZE   = 100
 
 SESSION = make_session(PLANNER_UA, {
@@ -32,10 +27,25 @@ SESSION = make_session(PLANNER_UA, {
 })
 
 
+def simplify_notes(notes):
+    result = []
+    for note in notes or []:
+        content = note.get('content') or ''
+        text = BeautifulSoup(content, 'html.parser').get_text(' ', strip=True)
+        if text:
+            result.append({'name': note.get('name') or 'Timetable note', 'text': text,
+                           'html': content})
+    return result
+
+
 def get_sessions() -> list[dict]:
     resp = SESSION.get(REFERENCE, timeout=15)
     resp.raise_for_status()
-    items = resp.json()["payload"]["currentSessions"]
+    reference = resp.json()["payload"]
+    available = {d['value'] for d in reference['divisions']}
+    if not all(d in available for ds in CAMPUS_DIVISIONS.values() for d in ds):
+        raise ValueError('Official TTB division identifiers changed; review adapters')
+    items = reference["currentSessions"]
     # Keep only non-header real sessions (have a 5-digit+ code)
     return [s for s in items if not s.get("header") and len(s["value"]) >= 5]
 
@@ -75,7 +85,9 @@ def fetch_all_courses(session_code: str, divisions: list[str]) -> list[dict]:
         total  = data.get("total", 0)
         courses.extend(batch)
         print(f"  page {page}: {len(batch)} courses (total so far: {len(courses)}/{total})")
-        if len(courses) >= total or not batch:
+        if not batch and len(courses) < total:
+            raise ValueError('Incomplete TTB pagination; preserving previous snapshots')
+        if len(courses) >= total:
             break
         page += 1
         time.sleep(0.3)
@@ -89,12 +101,20 @@ def simplify_course(raw: dict) -> dict:
         for mt in sec.get("meetingTimes", []):
             start = mt.get("start", {})
             end   = mt.get("end", {})
-            bld   = mt.get("building", {})
+            bld   = mt.get("building") or {}
+            room_number = bld.get('buildingRoomNumber', '') or ''
+            room_suffix = bld.get('buildingRoomSuffix', '') or ''
+            room = (bld.get('buildingCode', '') + ' ' + (room_number + room_suffix if room_number else room_suffix)).strip()
             times.append({
                 "day":       start.get("day"),
                 "startMs":   start.get("millisofday"),
                 "endMs":     end.get("millisofday"),
-                "room":      (bld.get("buildingCode", "") + " " + bld.get("buildingRoomNumber", "")).strip(),
+                "room":      room,
+                "roomSuffix": room_suffix,
+                "buildingUrl": bld.get("buildingUrl"),
+                "sessionCode": mt.get("sessionCode"),
+                "repetition": mt.get("repetition"),
+                "repetitionTime": mt.get("repetitionTime"),
             })
         instructors_raw = sec.get("instructors", []) or []
         instructors = [
@@ -105,25 +125,29 @@ def simplify_course(raw: dict) -> dict:
             "name":          sec.get("name"),
             "type":          sec.get("teachMethod"),  # LEC, TUT, PRA
             "sectionNumber": sec.get("sectionNumber"),
+            "cancelled": sec.get("cancelInd") == "Y" or raw.get("cancelInd") == "Y",
+            "linkedMeetingSections": sec.get("linkedMeetingSections", []),
+            "deliveryModes": [mode.get("mode") for mode in sec.get("deliveryModes", [])],
             "times":         times,
             "instructors":   instructors,
+            "notes":         simplify_notes(sec.get("notes")),
         })
     return {
         "code":        raw["code"],
         "name":        raw["name"],
         "sectionCode": raw.get("sectionCode"),   # F / S / Y
+        "cancelled": raw.get("cancelInd") == "Y",
         "sections":    sections,
+        "notes":       simplify_notes(raw.get("notes")),
     }
-
-
-def base_code(code: str) -> str:
-    """Subject+number+weight key shared by a course's campus variants
-    (CSC108H5 → 'CSC108H'); the trailing campus digit is what differs."""
-    return re.sub(r"(\d)$", "", code or "")
 
 
 def write_timetable(prefix: str, code: str, label: str, courses: list[dict]) -> None:
     out = {
+        "source": COURSES_API,
+        "retrievedAt": datetime.now(timezone.utc).isoformat(),
+        "divisions": CAMPUS_DIVISIONS[prefix],
+        "coverage": "All courses returned by TTB for the listed divisions and session; not ACORN enrolment availability",
         "session":      code,
         "sessionLabel": label,
         "courseCount":  len(courses),
@@ -141,21 +165,19 @@ def main() -> None:
     sessions = get_sessions()
     print(f"Found {len(sessions)} sessions: {[s['value'] for s in sessions]}")
 
+    if not sessions:
+        raise ValueError('Empty official session index; preserving previous snapshots')
+    snapshots = []
     for s in sessions:
         code  = s["value"]
         label = s["label"]
-        print(f"\nScraping UTM {label} ({code})...")
-        utm = [simplify_course(c) for c in fetch_all_courses(code, [UTM_DIV])]
-        write_timetable("utm", code, label, utm)
+        for campus, divisions in CAMPUS_DIVISIONS.items():
+            print(f"Scraping {campus} {label} ({code})...")
+            courses = [simplify_course(c) for c in fetch_all_courses(code, divisions)]
+            snapshots.append((campus, code, label, courses))
 
-        # St. George: keep only the same-named twins of UTM courses, so the file
-        # stays small and matches the "extra H1 pill on a UTM course" feature.
-        print(f"Scraping St. George {label} ({code})...")
-        utm_bases = {base_code(c["code"]) for c in utm}
-        stg_all   = [simplify_course(c) for c in fetch_all_courses(code, STG_DIVS)]
-        stg       = [c for c in stg_all if base_code(c["code"]) in utm_bases]
-        print(f"  filtered {len(stg_all)} St. George courses → {len(stg)} cross-listed with UTM")
-        write_timetable("stg", code, label, stg)
+    for snapshot in snapshots:
+        write_timetable(*snapshot)
 
     # Write a session index so the frontend knows which files exist
     index = [{"value": s["value"], "label": s["label"]} for s in sessions]

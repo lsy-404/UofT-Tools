@@ -90,7 +90,6 @@
 .course-table tr.s-done td.c-flex,
 .course-table tr.s-done td.c-year{opacity:.45}
 .course-table tr.s-done .code-link{opacity:.45}
-.course-table tr.s-done .excl-flag{opacity:.45}
 .course-code{font-family:monospace;font-weight:600;font-size:13px}
 .programs-tags{display:flex;flex-wrap:wrap;gap:3px}
 .ptag{font-size:11px;padding:1px 5px;border-radius:4px}
@@ -177,9 +176,6 @@
 /* Shrink Status / Course / Year to their content; let Required-by & Prereqs share the rest. */
 .course-table th.c-status,.course-table td.c-status,.course-table th.c-course,.course-table td.c-course,.course-table th.c-year,.course-table td.c-year{width:1px;white-space:nowrap}
 .course-table th.c-flex,.course-table td.c-flex{width:50%}
-.excl-flag{position:relative;display:inline-block;color:var(--red);font-size:12px;margin-left:4px;cursor:help;outline:none}
-.excl-tip{display:none;position:absolute;left:50%;top:140%;transform:translateX(-50%);z-index:60;width:230px;white-space:normal;padding:7px 9px;font-size:11px;line-height:1.5;color:var(--gray-800);background:#fff;border:1px solid var(--gray-200);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.14)}
-.excl-flag:hover .excl-tip,.excl-flag:focus .excl-tip,.excl-flag:focus-within .excl-tip{display:block}
 /* Course name preview — delayed show (~500ms) on hover/focus, positioned below the link. */
 .c-name-wrap{position:relative}
 .course-name-preview{visibility:hidden;opacity:0;position:absolute;left:0;bottom:calc(100% + 8px);z-index:110;width:360px;max-width:min(94vw,480px);padding:10px 12px;background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.14);pointer-events:none;transition:visibility 0s,opacity .15s;white-space:normal}
@@ -346,3 +342,12 @@
   .sched-controls{width:100% !important;flex:0 0 auto;overflow-y:visible;border-right:none;border-bottom:1px solid var(--gray-200)}
   .grid-area{flex:0 0 auto;padding:10px;overflow:visible}
 }
+:root { --requirement-required: #155e36; }
+.planner-scope .role-filter { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+.planner-scope .role-filter select { padding: 6px; max-width: 100%; }
+.planner-scope .program-search { display: block; padding: 10px; font-size: 12px; }
+.planner-scope .program-search input { display: block; width: 100%; box-sizing: border-box; padding: 7px; margin-top: 5px; }
+.planner-scope .role-required { background: #e8f5eb; color: #155e36; }
+.planner-scope .role-elective, .planner-scope .role-alternative { background: #e7f1fc; color: #174d86; }
+.planner-scope .role-recommended { background: #fff4d9; color: #765218; }
+.planner-scope .requirement-role { display: inline-block; font-size: 11px; border: 1px solid #b7c3ce; border-radius: 4px; padding: 2px 5px; margin-right: 6px; flex: 0 0 auto; }

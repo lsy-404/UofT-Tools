@@ -12,6 +12,7 @@ export default defineConfig({
   root: webRoot,
   publicDir: resolve(repoRoot, 'data'),
   plugins: [vue()],
+  test: { root: repoRoot, include: ['test/**/*.test.js'] },
   build: {
     outDir: resolve(repoRoot, 'dist'),
     emptyOutDir: true,
