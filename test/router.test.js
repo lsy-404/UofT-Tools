@@ -10,6 +10,7 @@ describe('router resolves without infinite redirect', () => {
     expect(router.currentRoute.value.name).toBe('home')
     await router.push('/planner')
     expect(router.currentRoute.value.name).toBe('planner')
+    expect(router.currentRoute.value.meta.title).toBe('UofT Course Planner — UofT Tools')
     await router.push('/faq')
     expect(router.currentRoute.value.name).toBe('faq')
   })

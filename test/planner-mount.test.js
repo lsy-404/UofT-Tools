@@ -72,6 +72,7 @@ describe('PlannerApp mounts and renders', () => {
     await controls[2].trigger('click')
     expect(controls[2].attributes('aria-pressed')).toBe('true')
     expect(wrapper.find('.tab-panel.active').attributes('aria-label')).toBe('Schedule builder')
+    expect(wrapper.find('.tab-panel.active').text()).toContain('Course Plan page')
 
     await controls[0].trigger('click')
     expect(controls[0].attributes('aria-pressed')).toBe('true')

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
-import { state, init, switchCampus, setCourseStatus, addExtraCourse, applyImported, courseList, courseOfferings, isSatisfied, refreshSchedule } from '../web/src/pages/planner/store.js'
+import { state, init, switchCampus, setCourseStatus, addExtraCourse, applyImported, courseList, courseOfferings, degreeProgress, isSatisfied, refreshSchedule } from '../web/src/pages/planner/store.js'
 
 const catalogs = Object.fromEntries(['utm', 'stg', 'utsc'].map(c => [c, { sections: [{ slug: 'cs', name: 'CS', programs: [{ id: c, name: c, courses: [], type: 'Major' }] }] }]))
 const courses = { utm: 'CSC108H5', stg: 'CSC108H1', utsc: 'CSCA08H3' }
@@ -54,6 +54,23 @@ describe('campus profiles and safe requirement recognition', () => {
     expect(isSatisfied('HIS100H0')).toBe(true)
     expect(isSatisfied('HIS200Y0')).toBe(true)
     expect(isSatisfied('HIS300H5')).toBe(false)
+  })
+  it('loads, imports, adds and counts H0/Y0 courses in a St. George plan', async () => {
+    localStorage.setItem('uoft_home_campus', 'stg')
+    localStorage.setItem('stg_utm_course_status', JSON.stringify({ HIS100H0: 3, HIS200Y0: 3 }))
+    await init()
+    expect(state.courseStatus).toMatchObject({ HIS100H0: 3, HIS200Y0: 3 })
+
+    state.courses = {
+      HIS100H0: { name: 'Off-campus History', breadth: '(1)' },
+      HIS200Y0: { name: 'Off-campus History Year', breadth: '(2)' },
+    }
+    expect(addExtraCourse(' his100h0 ')).toBe(true)
+    applyImported({ campus: 'stg', courseStatus: { HIS100H0: 3, HIS200Y0: 3 }, extraCourses: ['HIS100H0', 'HIS200Y0'] })
+
+    expect(state.extraCourses).toEqual(['HIS100H0', 'HIS200Y0'])
+    expect(courseList.value.map(course => course.code)).toEqual(expect.arrayContaining(['HIS100H0', 'HIS200Y0']))
+    expect(degreeProgress.value.total).toBe(1.5)
   })
   it('rejects wrong-campus and malformed imports without replacing the existing plan', async () => {
     await init(); setCourseStatus('CSC108H5', 3)

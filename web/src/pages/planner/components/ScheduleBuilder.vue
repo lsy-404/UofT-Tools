@@ -119,7 +119,7 @@ const offeringTitle = offering => {
       <label>Courses to Schedule</label>
       <div class="course-picks">
         <div v-if="!pendingCourses.length" class="sched-empty">
-          No planned or current courses yet. Mark courses as &ldquo;Plan&rdquo; or &ldquo;Taking&rdquo; in the Program Planner tab to schedule them.
+          No planned or current courses yet. Mark courses as &ldquo;Plan&rdquo; or &ldquo;Taking&rdquo; in the Course Plan page to schedule them.
         </div>
         <div
           v-for="c in pendingCourses"

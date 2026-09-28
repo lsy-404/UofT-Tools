@@ -7,7 +7,7 @@ import { rankedSchedules } from '../web/src/pages/planner/lib/scheduling.js'
 const read = name => JSON.parse(readFileSync(new URL(`../data/planner/data/${name}.json`, import.meta.url), 'utf8'))
 describe('campus-specific degree rules', () => {
   it('recognizes UTSC letter levels in input, display and requirements', () => {
-    for (const [code, level] of [['CSCA08H3', 1], ['MATB41H3', 2], ['CSCC01H3', 3], ['CSCD01H3', 4], ['CSC148H1', 1], ['CSC343H5', 3]]) {
+    for (const [code, level] of [['CSCA08H3', 1], ['MATB41H3', 2], ['CSCC01H3', 3], ['CSCD01H3', 4], ['CSC148H1', 1], ['CSC343H5', 3], ['HIS100H0', 1], ['HIS200Y0', 2]]) {
       expect(VALID_COURSE.test(code)).toBe(true)
       expect(levelOf(code)).toBe(level)
       expect(courseYear(code)).toBe(level)
@@ -21,6 +21,15 @@ describe('campus-specific degree rules', () => {
     expect(result.total).toBe(0.5)
     expect(result.pending).toEqual(['CSC108H1', 'FAKE999H5'])
     expect(result.cats.Science).toBe(0.5)
+  })
+  it('counts St. George H0 and Y0 catalog courses as degree credit', () => {
+    const result = progress('stg', { HIS100H0: 3, HIS200Y0: 3 }, {
+      HIS100H0: { breadth: '(1)' },
+      HIS200Y0: { breadth: '(2)' },
+    }, [3])
+    expect(result.pending).toEqual([])
+    expect(result.total).toBe(1.5)
+    expect(result.home).toBe(1.5)
   })
   it('separates earned and projected credits and excludes timetable-only metadata', () => {
     const statuses = { CSCA08H3: 1, CSCB07H3: 2, CSCD01H3: 3, CSCC01H3: 3 }

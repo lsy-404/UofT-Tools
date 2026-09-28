@@ -4,7 +4,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 const routes = [
   { path: '/', name: 'home', component: () => import('./pages/Home.vue'), meta: { title: 'UofT Tools' } },
   { path: '/calendar', name: 'calendar', component: () => import('./pages/Calendar.vue'), meta: { title: 'Calendar Feeds — UofT Tools' } },
-  { path: '/planner', name: 'planner', component: () => import('./pages/planner/PlannerApp.vue'), meta: { title: 'UTM Course Planner — UofT Tools', wide: true } },
+  { path: '/planner', name: 'planner', component: () => import('./pages/planner/PlannerApp.vue'), meta: { title: 'UofT Course Planner — UofT Tools', wide: true } },
   { path: '/faq', name: 'faq', component: () => import('./pages/Faq.vue'), meta: { title: 'FAQ — UofT Tools' } },
   { path: '/statement', name: 'statement', component: () => import('./pages/Statement.vue'), meta: { title: 'Statement — UofT Tools' } },
   // Backward-compatible redirects from the old multi-page .html URLs.
