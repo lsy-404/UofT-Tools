@@ -43,27 +43,30 @@ beforeEach(() => {
   state.programs = null
   state.courses = null
   state.selectedPrograms = []
-  state.activeTab = 'planner'
+  state.activeTab = 'programs'
   state.viewMode = 'list'
 })
 
 describe('PlannerApp mounts and renders', () => {
-  it('renders header, tabs and the program sidebar after init', async () => {
+  it('renders three top-level Planner sections and the program sidebar after init', async () => {
     const wrapper = mount(PlannerApp)
     await init()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Program Planner')
+    expect(wrapper.text()).toContain('Campus & Programs')
+    expect(wrapper.text()).toContain('Course Plan')
     expect(wrapper.text()).toContain('Schedule Builder')
     expect(wrapper.text()).toContain('Computer Science')
+    expect(wrapper.text()).toContain('Program combination')
   })
 
-  it('shows course list when a program is selected, in both views', async () => {
+  it('keeps course statuses and requirements in the Course Plan section', async () => {
     const wrapper = mount(PlannerApp)
     await init()
     await flushPromises()
 
     toggleProgram('p1')
+    state.activeTab = 'courses'
     await flushPromises()
     expect(wrapper.text()).toContain('CSC108H5')
     expect(wrapper.text()).toContain('CSC148H5')

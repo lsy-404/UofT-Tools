@@ -36,6 +36,13 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 
 <template>
   <div class="planner-scope">
+    <div class="tabs" role="tablist" aria-label="Planner sections">
+      <button class="tab-btn" :class="{ active: state.activeTab === 'programs' }" @click="switchTab('programs')">Campus &amp; Programs</button>
+      <button class="tab-btn" :class="{ active: state.activeTab === 'courses' }" @click="switchTab('courses')">Course Plan</button>
+      <button class="tab-btn" :class="{ active: state.activeTab === 'schedule' }" @click="switchTab('schedule')">Schedule Builder</button>
+    </div>
+
+    <div class="tab-panel" :class="{ active: state.activeTab === 'programs' }">
     <section class="campus-banner" aria-label="Campus and data coverage">
       <label for="home-campus">Home campus / faculty</label>
       <select id="home-campus" :value="state.campus" :disabled="state.loading" @change="switchCampus($event.target.value)">
@@ -55,13 +62,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
         <p>Cross-campus courses may be planned and scheduled; requirement recognition remains pending manual verification unless explicitly verified. Each home campus has its own saved plan.</p>
       </details>
     </section>
-    <div class="tabs">
-      <button class="tab-btn" :class="{ active: state.activeTab === 'planner' }" @click="switchTab('planner')">Program Planner</button>
-      <button class="tab-btn" :class="{ active: state.activeTab === 'schedule' }" @click="switchTab('schedule')">Schedule Builder</button>
-    </div>
 
-    <!-- Program Planner -->
-    <div class="tab-panel" :class="{ active: state.activeTab === 'planner' }">
       <div class="mob-bar">
         <button class="mob-sidebar-btn" @click="sidebarOpen = !sidebarOpen">☰ Programs</button>
       </div>
@@ -69,7 +70,13 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
       <ProgramSidebar :class="{ 'mob-open': sidebarOpen }" />
 
       <div class="main">
-        <ProgramSelector />
+        <ProgramSelector mode="programs" />
+      </div>
+    </div>
+
+    <div class="tab-panel" :class="{ active: state.activeTab === 'courses' }">
+      <div class="main course-plan-main">
+        <ProgramSelector mode="courses" />
 
         <div v-if="state.selectedPrograms.length || courseList.length" class="view-toggle">
           <button class="view-btn" :class="{ active: state.viewMode === 'list' }" @click="state.viewMode = 'list'">Course List</button>

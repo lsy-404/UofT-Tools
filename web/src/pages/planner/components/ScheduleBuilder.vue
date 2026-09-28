@@ -6,6 +6,8 @@ import {
 } from '../store.js'
 import CoursePicker from './CoursePicker.vue'
 import HardConstraints from './HardConstraints.vue'
+import { CAMPUSES } from '../lib/campuses.js'
+import { campusName } from '../lib/scheduling.js'
 
 const DAYS = [
   { d: 1, label: 'Mon' }, { d: 2, label: 'Tue' }, { d: 3, label: 'Wed' },
@@ -16,6 +18,13 @@ const WARN_TEXT = {
   missing: (w) => `${w.code}: ${w.reason || `not offered in ${w.term}`}`,
   tba: (w) => `${w.code}: no meeting times posted yet (${w.term}, TBA)`,
   friend: (w) => `${w.code}: can't fit their own courses around the shared ones (${w.term})`,
+}
+const isAwayFromHome = offering => offering.campus && offering.campus !== CAMPUSES[state.campus].suffix
+const offeringTitle = offering => {
+  if (offering.tba) return 'Offered, but no meeting times posted yet (TBA)'
+  if (offering.campus === '0') return 'Off-campus instruction; check the actual location and travel time'
+  if (isAwayFromHome(offering)) return `${campusName(offering.code)} campus — commute buffer applies`
+  return ''
 }
 </script>
 
@@ -125,9 +134,9 @@ const WARN_TEXT = {
               :key="(t.code || c.code) + t.value"
               type="button"
               class="seg-pill"
-              :class="{ active: isScheduledIn(t.code || c.code, t.value), full: /Full|Year/.test(t.label), tba: t.tba, offcampus: t.campus && t.campus !== '5' }"
+              :class="{ active: isScheduledIn(t.code || c.code, t.value), full: /Full|Year/.test(t.label), tba: t.tba, offcampus: isAwayFromHome(t) }"
               :disabled="t.tba"
-              :title="t.tba ? 'Offered, but no meeting times posted yet (TBA)' : (t.campus && t.campus !== '5' ? 'Same course on another campus — adds a commute buffer when scheduled next to a UTM class' : '')"
+              :title="offeringTitle(t)"
               @click="toggleScheduledTerm(t.code || c.code, t.value)"
             >{{ t.label }}{{ t.tba ? ' TBA' : '' }}</button>
             <span v-if="!(courseOfferings[c.code] || []).length" class="avail-none">{{ scopePublished ? 'Not offered in this range' : 'Timetable not published yet' }}</span>

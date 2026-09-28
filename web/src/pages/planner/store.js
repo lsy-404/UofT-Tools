@@ -1,4 +1,4 @@
-import { CAMPUSES, VALID_COURSE, progress, combination, degreeConfiguration } from './lib/campuses.js'
+import { CAMPUSES, VALID_COURSE, courseCampus, progress, combination, degreeConfiguration } from './lib/campuses.js'
 import { reactive, computed, watch } from 'vue'
 import { buildCourseList, computeSuggestions } from './lib/courses.js'
 import {
@@ -75,7 +75,7 @@ export const state = reactive({
   timetable: null,
   timetableSession: null,
 
-  activeTab: 'planner',          // 'planner' | 'schedule'
+  activeTab: 'programs',         // 'programs' | 'courses' | 'schedule'
   viewMode: 'list',              // 'list' | 'requirements'
 
   sectionFilter: '',
@@ -264,7 +264,7 @@ export const courseAvailability = availability
 // ── Status helpers ──
 export function getStatus(code) { return state.courseStatus[code] || 0 }
 export function isDone(code) { return getStatus(code) === 3 }
-export function isSatisfied(code) { return getStatus(code) === 3 && code.endsWith(CAMPUSES[state.campus].suffix) && !!state.courses?.[code] && !state.courses[code].timetableOnly }
+export function isSatisfied(code) { return getStatus(code) === 3 && courseCampus(code) === state.campus && !!state.courses?.[code] && !state.courses[code].timetableOnly }
 
 export function setCourseStatus(code, status) {
   if (status === 0) delete state.courseStatus[code]

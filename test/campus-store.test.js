@@ -40,6 +40,21 @@ describe('campus profiles and safe requirement recognition', () => {
     expect(isSatisfied('CSC108H1')).toBe(false)
     expect(courseList.value.map(c => c.code)).toContain('CSC108H1')
   })
+  it('recognizes St. George H0 and Y0 courses as completed home-campus work', async () => {
+    await init()
+    state.campus = 'stg'
+    state.courses = {
+      HIS100H0: { name: 'Off-campus History' },
+      HIS200Y0: { name: 'Off-campus History Year' },
+      HIS300H5: { name: 'UTM History' },
+    }
+    setCourseStatus('HIS100H0', 3)
+    setCourseStatus('HIS200Y0', 3)
+    setCourseStatus('HIS300H5', 3)
+    expect(isSatisfied('HIS100H0')).toBe(true)
+    expect(isSatisfied('HIS200Y0')).toBe(true)
+    expect(isSatisfied('HIS300H5')).toBe(false)
+  })
   it('rejects wrong-campus and malformed imports without replacing the existing plan', async () => {
     await init(); setCourseStatus('CSC108H5', 3)
     expect(() => applyImported({ campus: 'utsc', courseStatus: { CSCA08H3: 3 } })).toThrow('Switch')

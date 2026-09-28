@@ -30,7 +30,7 @@ const showSharedHint = computed(() =>
             <button class="alt-btn" :disabled="term.optionIndex >= term.optionCount - 1" @click="setAlt(term.value, term.optionIndex + 1)">›</button>
           </div>
         </div>
-        <ScheduleGrid :results="term.results" />
+        <ScheduleGrid :results="term.results" :home-campus="state.campus" />
         <template v-for="result in term.results" :key="result.code">
           <details v-if="!result.missing && (result.notes?.length || result.sections?.some(section => section.notes?.length))" class="timetable-notes">
             <summary>{{ result.code }} · official timetable notes</summary>
