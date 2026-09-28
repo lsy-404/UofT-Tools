@@ -1,6 +1,6 @@
 # Planner review — 2026-09-27
 
-Status: **repair under review**. The findings below document the pre-repair baseline. See the correction record for the current implementation. Passing tests do not establish graduation eligibility or validate every complex calendar clause.
+This record documents the pre-repair baseline and subsequent corrections. Passing tests do not establish graduation eligibility or validate every complex calendar clause.
 
 The user clarified UTSG scope as **the complete Arts & Science directory, including Rotman**. Other UTSG faculties are excluded. UTSC uses its complete official program search; existing UTM functionality is retained.
 
