@@ -1,6 +1,6 @@
 # Planner review — 2026-09-27
 
-Status: **local repair ready for user review; do not upload or open a PR yet**. The findings below document the pre-repair baseline. See the correction record for the current implementation. Passing tests do not establish graduation eligibility or validate every complex calendar clause.
+Status: **repair under review**. The findings below document the pre-repair baseline. See the correction record for the current implementation. Passing tests do not establish graduation eligibility or validate every complex calendar clause.
 
 The user clarified UTSG scope as **the complete Arts & Science directory, including Rotman**. Other UTSG faculties are excluded. UTSC uses its complete official program search; existing UTM functionality is retained.
 
@@ -56,4 +56,4 @@ The user clarified UTSG scope as **the complete Arts & Science directory, includ
 
 Limitations: role extraction is conservative and is not a general formal parser for all calendar language. Some mixed clauses remain references; most unrestricted subject/level pools retain prose instead of enumerated choices. Historical course references absent from the current catalog have no fabricated metadata. Directory completeness does not imply automatic evaluation of every program requirement.
 
-No GitHub upload, PR, merge or deployment was performed during these repairs.
+No deployment was performed during these repairs.

@@ -1,4 +1,5 @@
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch, Mock
@@ -237,6 +238,37 @@ class CalendarAdapterTests(unittest.TestCase):
         post.return_value = response
         with self.assertRaisesRegex(ValueError, 'Incomplete'):
             timetable.fetch_all_courses('20269', ['SCAR'])
+
+    @patch.object(timetable.SESSION, 'post')
+    def test_unpublished_session_fails_instead_of_becoming_an_empty_snapshot(self, post):
+        post.return_value = Mock(status_code=404)
+        with self.assertRaisesRegex(timetable.TimetableUnavailableError, 'not published'):
+            timetable.fetch_all_courses('20269', ['SCAR'])
+
+    @patch.object(timetable.SESSION, 'post')
+    def test_empty_unfiltered_timetable_fails(self, post):
+        response = Mock(status_code=200)
+        response.json.return_value = {'payload': {'pageableCourse': {'courses': [], 'total': 0}}}
+        post.return_value = response
+        with self.assertRaisesRegex(timetable.TimetableUnavailableError, 'empty unfiltered'):
+            timetable.fetch_all_courses('20269', ['SCAR'])
+
+    def test_failed_refresh_keeps_existing_snapshot_and_session_index(self):
+        raw_course = {'code': 'CSC100H5', 'name': 'Example', 'sections': []}
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp)
+            snapshot = output_dir / 'utm-timetable-20269.json'
+            index = output_dir / 'utm-sessions.json'
+            snapshot.write_text('{"existing": true}', encoding='utf-8')
+            index.write_text('[{"value": "20269"}]', encoding='utf-8')
+            with patch.object(timetable, 'OUTPUT_DIR', output_dir), \
+                 patch.object(timetable, 'get_sessions', return_value=[{'value': '20269', 'label': 'Fall'}]), \
+                 patch.object(timetable, 'fetch_all_courses', side_effect=[[raw_course], [raw_course],
+                     timetable.TimetableUnavailableError('TTB has not published 20269 for SCAR')]):
+                with self.assertRaises(timetable.TimetableUnavailableError):
+                    timetable.main()
+            self.assertEqual(snapshot.read_text(encoding='utf-8'), '{"existing": true}')
+            self.assertEqual(index.read_text(encoding='utf-8'), '[{"value": "20269"}]')
 
     def test_timetable_preserves_utsc_identity_and_all_meeting_components(self):
         raw = {'code': 'CSCA08H3', 'name': 'CS', 'sectionCode': 'F', 'sections': [

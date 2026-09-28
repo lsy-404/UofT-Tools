@@ -1,6 +1,6 @@
 # Planner coverage and maintenance
 
-> Local review revision (2026-09-27): the user clarified UTSG coverage as **all Arts & Science programs, including Rotman**, excluding other independent faculties. Full official search catalogs now replace the selected-subject import. This revision remains local for user review; do not upload it to GitHub yet. See [the review record](planner-review.md).
+> Review revision (2026-09-27): the user clarified UTSG coverage as **all Arts & Science programs, including Rotman**, excluding other independent faculties. Full official search catalogs now replace the selected-subject import. See [the review record](planner-review.md).
 
 This is a course planner and a set of **partial credit checks**, not a graduation audit or an enrolment system. No combination of green checks certifies graduation. All rules in the new progress panel are pinned to the **2026–2027 calendar**, reviewed on 2026-09-27. Earlier admission/program-entry cohorts require their own calendar review.
 
@@ -76,7 +76,7 @@ Before changing the academic year, manually review the official calendars, updat
 
 Existing `utm_*` local-storage keys and version-2 UTM exports are retained. UTSG and UTSC have separate profile keys. Version-3 exports include campus and extra courses; importing into the wrong home campus is rejected with a switch instruction. Marked courses remain visible after their program is removed.
 
-For review, check full directory coverage, course-role classification against official text, conservative cross-campus treatment, 2026-only rule scope, co-op/manual requirements, UTM saved-state migration and representative course schedules. No deployment or merge is part of this change.
+For review, check full directory coverage, course-role classification against official text, conservative cross-campus treatment, 2026-only rule scope, co-op/manual requirements, UTM saved-state migration and representative course schedules. Deployment remains separate from data-refresh verification.
 
 ### Verification on 2026-09-27
 

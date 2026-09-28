@@ -27,6 +27,10 @@ SESSION = make_session(PLANNER_UA, {
 })
 
 
+class TimetableUnavailableError(RuntimeError):
+    """The official TTB index lists a session whose timetable is unavailable."""
+
+
 def simplify_notes(notes):
     result = []
     for note in notes or []:
@@ -77,12 +81,19 @@ def fetch_all_courses(session_code: str, divisions: list[str]) -> list[dict]:
         }
         resp = SESSION.post(COURSES_API, json=payload, timeout=20)
         if resp.status_code == 404:
-            print(f"  404 — session not yet published, skipping")
-            return []
+            raise TimetableUnavailableError(
+                f'TTB has not published {session_code} for {", ".join(divisions)}; '
+                'preserving previous snapshots'
+            )
         resp.raise_for_status()
         data   = resp.json()["payload"]["pageableCourse"]
         batch  = data.get("courses", [])
         total  = data.get("total", 0)
+        if total == 0:
+            raise TimetableUnavailableError(
+                f'TTB returned an empty unfiltered timetable for {session_code} '
+                f'and {", ".join(divisions)}; preserving previous snapshots'
+            )
         courses.extend(batch)
         print(f"  page {page}: {len(batch)} courses (total so far: {len(courses)}/{total})")
         if not batch and len(courses) < total:
