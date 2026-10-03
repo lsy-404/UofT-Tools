@@ -12,7 +12,7 @@
   // Build the Vite app before deploying, so `wrangler deploy` works in CI
   // (Cloudflare Workers Builds) where dist/ is not committed.
   "build": {
-    "command": "npm run build"
+    "command": "pnpm run build"
   },
   "assets": {
     "directory": "dist",

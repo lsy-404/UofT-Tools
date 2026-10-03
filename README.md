@@ -20,7 +20,7 @@ Visit **[uoft.voidcarve.com](https://uoft.voidcarve.com)** to access all tools a
 - **Frontend**: Vue 3 + Vite multi-page app, isolated under `web/` (page entries + `web/src/`), deployed to Cloudflare (Workers static assets)
 - **Backend**: Python web scrapers (Playwright + BeautifulSoup), organised by module under `scripts/{calendar,planner,common}/`, run on a schedule via GitHub Actions
 - **Data**: scraper-generated `*.ics` / planner JSON live in `data/` (separate from the web sources). Vite serves this directory in development and copies it into `dist/` during the build, preserving paths such as `/calendar/*.ics` and `/planner/data/*.json`
-- **Deployment**: `dist/` is the publish directory (`wrangler deploy`); `npm run deploy` builds + deploys
+- **Deployment**: `dist/` is the publish directory; `pnpm run deploy` builds + deploys with Wrangler
 - **Updates**: Automatic calendar sync every 24 hours
 
 ### Layout
@@ -35,15 +35,15 @@ dist/       build output (gitignored): app assets and copied data/
 ### Local development
 
 ```bash
-npm install
-npm run dev                       # Vite dev server (web/ app)
-npm run build                     # vite build → dist/, including data/
-npm run preview                   # serve dist/ with data (full local test)
-npm test                          # Vitest unit + component tests
+corepack pnpm@10.34.6 install --frozen-lockfile
+pnpm run dev                       # Vite dev server (web/ app)
+pnpm run build                     # vite build → dist/, including data/
+pnpm run preview                   # serve dist/ with data (full local test)
+pnpm run test                      # Vitest unit + component tests
 ```
 
-> Note: `npm run dev` serves the app only; the scraper data in `data/` is copied
-> in at build time, so use `npm run build && npm run preview` to test with live data.
+> Note: `pnpm run dev` serves the app only; the scraper data in `data/` is copied
+> in at build time, so use `pnpm run build && pnpm run preview` to test with live data.
 
 </details>
 

@@ -42,16 +42,19 @@ jobs:
       - name: Scrape TTB course timetables (ERIN, ARTSC, SCAR)
         run: python scripts/planner/scrape_ttb_courses.py
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.6
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
 
       - name: Validate refreshed data and build
         run: |
-          npm ci
-          npm test
-          npm run build
+          pnpm install --frozen-lockfile
+          pnpm run test
+          pnpm run build
           python -m unittest discover -s test -p '*_test.py'
 
       - name: Commit and push updated planner data (if changed)

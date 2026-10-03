@@ -62,10 +62,10 @@ python scripts/planner/scrape_utm_programs.py
 python scripts/planner/scrape_utm_courses.py
 python scripts/planner/scrape_campus_catalogs.py
 python scripts/planner/scrape_ttb_courses.py
-npm ci
-npm test
+corepack pnpm@10.34.6 install --frozen-lockfile
+pnpm run test
 python -m unittest discover -s test -p '*_test.py'
-npm run build
+pnpm run build
 ```
 
 `update-planner.yml` performs the same refresh and validates tests/build before committing data. The full-calendar importer follows the final pager, rejects empty/duplicate pages or unknown course-code formats, and reconciles the published program identifiers. Unlisted/historical course references are recorded in `inventory.referencedCoursesOutsideCurrentCatalog`; never fabricate them. TTB validates official divisions and incomplete pagination. A failing run must be reviewed, not converted into empty data. For interrupted local reviews, `python scripts/planner/scrape_campus_catalogs.py --resume` reuses `.cache/planner-calendar` while retaining original page retrieval timestamps. Do not use `--resume` for scheduled refreshes.
