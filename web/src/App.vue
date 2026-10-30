@@ -1,10 +1,15 @@
 <script setup>
 import TheHeader from './components/TheHeader.vue'
 import TheFooter from './components/TheFooter.vue'
+import Breadcrumbs from './components/Breadcrumbs.vue'
+import { useSeoHead } from './seo.js'
+
+useSeoHead()
 </script>
 
 <template>
   <TheHeader />
+  <Breadcrumbs />
   <main class="page">
     <router-view v-slot="{ Component }">
       <transition name="page" mode="out-in">

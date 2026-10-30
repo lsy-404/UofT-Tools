@@ -16,10 +16,8 @@
   },
   "assets": {
     "directory": "dist",
-    // SPA: serve index.html for any path that isn't a real file, so vue-router
-    // client routes (/planner, /calendar, …) work on direct load/refresh.
-    // Real assets (.ics, .json, /assets/*) are still served directly.
-    "not_found_handling": "single-page-application"
+    // Every route is prerendered to static HTML; unknown paths get dist/404.html with a real 404 status.
+    "not_found_handling": "404-page"
   },
   "compatibility_flags": [
     "nodejs_compat"
