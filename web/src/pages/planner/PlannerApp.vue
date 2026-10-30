@@ -37,6 +37,10 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 
 <template>
   <div class="planner-scope">
+    <header class="planner-intro">
+      <h1>UofT Course Planner</h1>
+      <p>Pick a campus and program, track degree requirements, and build conflict-free timetables for UTM, UTSC and UTSG Arts &amp; Science.</p>
+    </header>
     <div class="tabs" aria-label="Planner sections">
       <button class="tab-btn" :class="{ active: state.activeTab === 'programs' }" :aria-pressed="state.activeTab === 'programs'" @click="switchTab('programs')">Campus &amp; Programs</button>
       <button class="tab-btn" :class="{ active: state.activeTab === 'courses' }" :aria-pressed="state.activeTab === 'courses'" @click="switchTab('courses')">Course Plan</button>
@@ -111,6 +115,9 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 </template>
 
 <style scoped>
+.planner-intro { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 8px 20px; background: #fff; border-bottom: 1px solid #ddd; }
+.planner-intro h1 { font-size: 16px; font-weight: 700; color: var(--blue); }
+.planner-intro p { font-size: 12px; color: var(--gray-600); }
 .campus-banner { padding: 16px; background: var(--gray-50, #f5f7fa); border-bottom: 1px solid #ddd; }
 .campus-banner select { margin: 0 12px; max-width: 100%; padding: 6px; }
 .campus-banner details { margin-top: 10px; font-size: 13px; }
