@@ -44,7 +44,7 @@ const sections = [
     items: [
       {
         q: 'Why is the site on a personal domain?',
-        a: `<p>The project is currently hosted under my personal domain (<code>uoft.voidcarve.com</code>) because I haven&rsquo;t yet found a more appropriate home for it. Ideally, a project like this would live under a student-organisation or community domain that better reflects its purpose.</p>
+        a: `<p>The project is currently hosted under my personal domain (<code>uoft.leisiyu.dev</code>) because I haven&rsquo;t yet found a more appropriate home for it. Ideally, a project like this would live under a student-organisation or community domain that better reflects its purpose.</p>
         <div class="callout">
           <strong>&#128233; Looking for a collaboration.</strong> If you represent a UofT student organisation, CS club, or student society that has a suitable domain and would be open to hosting or co-maintaining this project, I&rsquo;d love to hear from you. Please reach out via <a href="https://github.com/lsy-404/UofT-Tools/issues" target="_blank" rel="noopener noreferrer">GitHub</a> or email at <a href="mailto:sy.lei@mail.utoronto.ca">sy.lei@mail.utoronto.ca</a>.
         </div>`,

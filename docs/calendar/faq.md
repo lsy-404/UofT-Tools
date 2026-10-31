@@ -45,8 +45,8 @@ This approach allows us to capture dates from dynamic content (widgets, accordio
 
 ### Why webcal instead of HTTPS?
 **Webcal** is the standard protocol for calendar feeds and enables automatic updates. However, if your device doesn't support webcal, you can use the HTTPS URL instead:
-- Webcal: `webcal://uoft.voidcarve.com/calendar/artsci.ics`
-- HTTPS: `https://uoft.voidcarve.com/calendar/artsci.ics`
+- Webcal: `webcal://uoft.leisiyu.dev/calendar/artsci.ics`
+- HTTPS: `https://uoft.leisiyu.dev/calendar/artsci.ics`
 
 ### What if a date is wrong?
 The dates come directly from the official registrar pages. If a date appears incorrect:
@@ -90,7 +90,7 @@ You can add notes or change reminders, but:
 
 ### Can I share the calendar with others?
 Yes! Share the **webcal URL**, not your personal calendar:
-- Share: `webcal://uoft.voidcarve.com/calendar/artsci.ics`
+- Share: `webcal://uoft.leisiyu.dev/calendar/artsci.ics`
 - They can add it to their own calendar app
 
 ---

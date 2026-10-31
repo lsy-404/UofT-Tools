@@ -23,6 +23,6 @@
     "nodejs_compat"
   ],
   "routes": [
-    { "pattern": "uoft.voidcarve.com", "custom_domain": true }
+    { "pattern": "uoft.leisiyu.dev", "custom_domain": true }
   ]
 }

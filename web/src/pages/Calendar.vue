@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 
-const FALLBACK_BASE = 'https://uoft.voidcarve.com/calendar/'
+const FALLBACK_BASE = 'https://uoft.leisiyu.dev/calendar/'
 
 // Build webcal/https URLs from the current origin so the page works on any host
 // (GitHub Pages, Cloudflare, custom domain, localhost, etc.).
