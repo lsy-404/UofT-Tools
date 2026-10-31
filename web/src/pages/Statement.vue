@@ -19,7 +19,7 @@ const sections = [
     <h1 class="page-title">User Agreement</h1>
     <p class="updated">Last updated: June 9, 2026</p>
     <p class="intro">
-      Welcome to UofT Tools (<a href="https://uoft.voidcarve.com">uoft.voidcarve.com</a>, the &ldquo;Site&rdquo;). This
+      Welcome to UofT Tools (<a href="https://uoft.leisiyu.dev">uoft.leisiyu.dev</a>, the &ldquo;Site&rdquo;). This
       User Agreement (the &ldquo;Agreement&rdquo;) sets out the terms and conditions under which you (the &ldquo;user&rdquo;)
       may use the Site and its tools. Please read it carefully before using the Site.
     </p>

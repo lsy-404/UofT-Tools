@@ -10,7 +10,7 @@ A collection of open-source tools designed to make student life at the Universit
 
 ## Website
 
-Visit **[uoft.voidcarve.com](https://uoft.voidcarve.com)** to access all tools and features.
+Visit **[uoft.leisiyu.dev](https://uoft.leisiyu.dev)** to access all tools and features.
 
 ## Technical Overview
 

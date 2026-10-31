@@ -1,5 +1,5 @@
 // Plain data shared by the router, <head> management and the build-time sitemap.
-export const SITE_URL = 'https://uoft.voidcarve.com'
+export const SITE_URL = 'https://uoft.leisiyu.dev'
 export const SITE_NAME = 'UofT Tools'
 
 export const pages = {
