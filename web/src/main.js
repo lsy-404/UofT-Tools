@@ -2,6 +2,7 @@ import { ViteSSG } from 'vite-ssg'
 import './styles/theme.css'
 import App from './App.vue'
 import { routes } from './routes.js'
+import { receiveTransfer } from './storage-transfer.js'
 
 export const createApp = ViteSSG(App, {
   routes,
@@ -9,4 +10,8 @@ export const createApp = ViteSSG(App, {
   scrollBehavior() {
     return { top: 0 }
   },
+}, async ({ isClient }) => {
+  if (isClient) {
+    try { await receiveTransfer(window.localStorage, window.location, window.history) } catch { /* Storage may be unavailable. */ }
+  }
 })
