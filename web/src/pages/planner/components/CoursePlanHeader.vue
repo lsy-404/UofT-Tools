@@ -18,7 +18,6 @@ function onImport() { importPlanner(applyImported) }
           <button class="data-btn" @click="onImport">Import</button>
         </div>
       </div>
-      <p>To move a plan, <a href="https://uoft.leisiyu.dev/planner?export=1">export it from the previous site</a> and import it here for the same campus. Repeat for each campus. Schedule settings are not included.</p>
       <h3>{{ campusConfig.name }} {{ campusConfig.degreeLabel }} progress · 2026–2027 rules</h3>
       <p>Planning aid only. The degree profile follows your active programs. Earlier entry years, double degrees and individual exceptions require their own calendar review. BCS requirements start with the 2027–2028 calendar and are not evaluated here.</p>
       <p v-for="note in campusConfig.extraNotes" :key="note">{{ note }}</p>
