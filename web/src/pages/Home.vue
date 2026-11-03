@@ -6,7 +6,7 @@ const tools = [
     tagClass: 'tag-live',
     icon: '\u{1F4C5}',
     title: 'Academic Calendar Feeds',
-    desc: 'Subscribe to UTM, UTSC, and ArtsCI important academic dates as a webcal feed. Auto-updated daily via GitHub Actions.',
+    desc: 'Subscribe to UTM, UTSC, and ArtsCI important academic dates as a webcal feed. Updated weekly.',
     pills: ['UTSG', 'UTM', 'UTSC'],
   },
   {

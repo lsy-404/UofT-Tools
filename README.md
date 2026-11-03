@@ -10,7 +10,7 @@ A collection of open-source tools designed to make student life at the Universit
 
 ## Website
 
-Visit **[uoft.leisiyu.dev](https://uoft.leisiyu.dev)** to access all tools and features.
+Visit **[tiny.leisiyu.dev/p/uoft](https://tiny.leisiyu.dev/p/uoft)** to access all tools and features.
 
 ## Technical Overview
 

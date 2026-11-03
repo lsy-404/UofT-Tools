@@ -1,4 +1,8 @@
 <script setup>
+import { onMounted, ref } from 'vue'
+
+const homeUrl = ref('')
+onMounted(() => { homeUrl.value = document.querySelector('meta[name="home-url"]')?.content || '' })
 const links = [
   { to: '/', label: 'Home' },
 ]
@@ -10,6 +14,7 @@ const links = [
       <span>UofT Tools</span>
     </router-link>
     <nav class="links">
+      <a v-if="homeUrl" :href="homeUrl" class="navlink">Tiny Projects</a>
       <router-link
         v-for="l in links"
         :key="l.to"

@@ -7,7 +7,7 @@ import {
   campusOf,
 } from './lib/scheduling.js'
 
-const BASE = ''
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, '')
 const LS_STATUS = 'utm_course_status'
 const LS_PROGRAMS = 'utm_selected_programs'
 const LS_COMPLETED = 'utm_completed'

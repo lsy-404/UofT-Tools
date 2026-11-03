@@ -1,13 +1,14 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { SITE_URL } from '../site.js'
 
-const FALLBACK_BASE = 'https://uoft.leisiyu.dev/calendar/'
+const FALLBACK_BASE = `${SITE_URL}/calendar/`
 
 // Build webcal/https URLs from the current origin so the page works on any host
 // (GitHub Pages, Cloudflare, custom domain, localhost, etc.).
 function resolveBase() {
   try {
-    const base = window.location.origin + '/calendar/'
+    const base = window.location.origin + import.meta.env.BASE_URL + 'calendar/'
     if (!/^https?:\/\//.test(base)) return FALLBACK_BASE
     return base
   } catch (e) {
@@ -75,7 +76,7 @@ function copyUrl(text, toastId) {
       </div>
       <div class="cards-row">
         <div class="card">
-          <h3>&#128225; Subscribe (auto-updates daily)</h3>
+          <h3>&#128225; Subscribe (updates weekly)</h3>
           <p>Webcal feed &mdash; updates automatically.</p>
           <div class="actions">
             <a class="btn btn-primary" :href="webcal(c.file)">Add to Calendar</a>
@@ -91,7 +92,7 @@ function copyUrl(text, toastId) {
           <h3>&#8659; Download Snapshot</h3>
           <p>Import once. Won&rsquo;t auto-update.</p>
           <div class="actions">
-            <a class="btn btn-primary" :href="'/calendar/' + c.file" :download="c.downloadName">Download {{ c.file }}</a>
+            <a class="btn btn-primary" :href="base + c.file" :download="c.downloadName">Download {{ c.file }}</a>
             <a class="btn btn-outline" :href="c.official" target="_blank" rel="noopener noreferrer">Official Page &#8599;</a>
           </div>
         </div>
@@ -127,7 +128,7 @@ function copyUrl(text, toastId) {
     <div class="card" style="margin-top:.5rem">
       <h3>&#9432; How it works</h3>
       <ul>
-        <li>A GitHub Actions job runs once per day.</li>
+        <li>Calendar data is refreshed weekly.</li>
         <li><strong>UTM</strong> &mdash; headless browser renders the Elfsight widget on the UTM registrar page.</li>
         <li><strong>UTSC</strong> &mdash; static HTML tables on the UTSC registrar sub-pages are fetched directly.</li>
         <li><strong>ArtsCI</strong> &mdash; headless browser expands the accordion panels on the ArtsCI dates page.</li>

@@ -1,4 +1,6 @@
 <script setup>
+const calendarUrl = `${import.meta.env.BASE_URL}calendar`
+
 // Each answer is trusted, author-authored HTML rendered with v-html.
 const sections = [
   {
@@ -27,11 +29,11 @@ const sections = [
     items: [
       {
         q: 'How do I subscribe to the academic calendar feeds?',
-        a: `<p>Go to the <a href="/calendar">Calendar Feeds</a> page, pick your campus, and click <strong>Add to Calendar</strong>. The webcal link works with Google Calendar, Apple Calendar, Outlook, and most other apps. Your calendar will auto-update daily without any action on your part.</p>`,
+        a: `<p>Go to the <a href="${calendarUrl}">Calendar Feeds</a> page, pick your campus, and click <strong>Add to Calendar</strong>. The webcal link works with Google Calendar, Apple Calendar, Outlook, and most other apps. Your calendar app will check for updates automatically.</p>`,
       },
       {
         q: 'How often are the calendars updated?',
-        a: `<p>Once every 24 hours via a scheduled GitHub Actions job. The scraper fetches the latest data from each campus registrar page, regenerates the ICS files, and commits them to the repository. Cloudflare serves the updated files immediately after.</p>`,
+        a: `<p>The feeds are refreshed weekly. Calendar apps check subscribed feeds on their own schedules.</p>`,
       },
       {
         q: 'What if a date in the calendar is wrong?',
@@ -44,7 +46,7 @@ const sections = [
     items: [
       {
         q: 'Why is the site on a personal domain?',
-        a: `<p>The project is currently hosted under my personal domain (<code>uoft.leisiyu.dev</code>) because I haven&rsquo;t yet found a more appropriate home for it. Ideally, a project like this would live under a student-organisation or community domain that better reflects its purpose.</p>
+        a: `<p>The project is currently hosted under my personal domain (<code>tiny.leisiyu.dev/p/uoft</code>) because I haven&rsquo;t yet found a more appropriate home for it. Ideally, a project like this would live under a student-organisation or community domain that better reflects its purpose.</p>
         <div class="callout">
           <strong>&#128233; Looking for a collaboration.</strong> If you represent a UofT student organisation, CS club, or student society that has a suitable domain and would be open to hosting or co-maintaining this project, I&rsquo;d love to hear from you. Please reach out via <a href="https://github.com/lsy-404/UofT-Tools/issues" target="_blank" rel="noopener noreferrer">GitHub</a> or email at <a href="mailto:sy.lei@mail.utoronto.ca">sy.lei@mail.utoronto.ca</a>.
         </div>`,

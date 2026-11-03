@@ -1,5 +1,5 @@
 // Plain data shared by the router, <head> management and the build-time sitemap.
-export const SITE_URL = 'https://uoft.leisiyu.dev'
+export const SITE_URL = 'https://tiny.leisiyu.dev/p/uoft'
 export const SITE_NAME = 'UofT Tools'
 
 export const pages = {
@@ -10,7 +10,7 @@ export const pages = {
   },
   '/calendar': {
     title: 'U of T Academic Calendar Feeds (ICS) — UTSG, UTM, UTSC',
-    description: 'Subscribe to University of Toronto important academic dates for UTSG, UTM and UTSC as a webcal/ICS feed for Google, Apple or Outlook Calendar. Updated daily.',
+    description: 'Subscribe to University of Toronto important academic dates for UTSG, UTM and UTSC as a webcal/ICS feed for Google, Apple or Outlook Calendar. Updated weekly.',
     crumb: 'Calendar Feeds',
     app: { name: 'U of T Academic Calendar Feeds', category: 'EducationalApplication' },
   },

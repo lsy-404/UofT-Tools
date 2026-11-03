@@ -11,6 +11,7 @@ const webRoot = resolve(repoRoot, 'web')
 // in data/. Setting publicDir to the data folder lets Vite serve and copy it
 // natively during dev and build.
 export default defineConfig({
+  base: '/p/uoft/',
   root: webRoot,
   publicDir: resolve(repoRoot, 'data'),
   plugins: [vue()],
