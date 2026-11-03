@@ -1,0 +1,8 @@
+{
+  "name": "uoft-tools",
+  "account_id": "df4481f3ce1fa0394b4617442a97d147",
+  "main": "worker.js",
+  "compatibility_date": "2026-05-28",
+  "routes": [{ "pattern": "uoft.leisiyu.dev", "custom_domain": true }],
+  "rules": [{ "type": "Text", "globs": ["**/storage-transfer.js"], "fallthrough": true }]
+}
