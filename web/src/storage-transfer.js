@@ -1,11 +1,8 @@
 const profileKeys = ['utm_course_status', 'utm_selected_programs', 'utm_completed', 'utm_extra_courses', 'utm_schedule']
 export const TRANSFER_KEYS = ['uoft_home_campus', 'utm_ttb_warning_seen', ...['', 'stg_', 'utsc_'].flatMap(prefix => profileKeys.map(key => prefix + key))]
 
-const defaultPrefs = {
-  density: 'any', time: 'any', freeDays: [], busyDays: [], zzOverlap: true, zzWithReg: false,
-  commute: { enabled: true, hours: 1 },
-  constraints: { sections: {}, unavailable: [], earliest: '', latest: '', excludedInstructors: [], lunch: { enabled: false, start: '11:00', end: '14:00', minutes: 60 }, online: 'any' },
-}
+export const defaultConstraints = () => ({ sections: {}, unavailable: [], earliest: '', latest: '', excludedInstructors: [], lunch: { enabled: false, start: '11:00', end: '14:00', minutes: 60 }, online: 'any' })
+export const defaultPrefs = () => ({ density: 'any', time: 'any', freeDays: [], busyDays: [], zzOverlap: true, zzWithReg: false, commute: { enabled: true, hours: 1 }, constraints: defaultConstraints() })
 
 function differs(value, defaults) {
   if (Array.isArray(value)) return value.length > 0
@@ -15,6 +12,20 @@ function differs(value, defaults) {
 
 function isRecord(value) { return !!value && typeof value === 'object' && !Array.isArray(value) }
 
+const strings = value => Array.isArray(value) && value.every(item => typeof item === 'string')
+const optional = (value, test) => value === undefined || test(value)
+const recordOf = (value, test) => isRecord(value) && Object.values(value).every(test)
+const scalar = type => value => typeof value === type && (type !== 'number' || Number.isFinite(value))
+const string = scalar('string'), number = scalar('number'), boolean = scalar('boolean')
+const days = value => Array.isArray(value) && value.every(day => string(day) || number(day))
+const sectionRule = value => isRecord(value) && optional(value.locked, item => recordOf(item, string)) && optional(value.excluded, strings)
+const sections = value => recordOf(value, term => recordOf(term, sectionRule))
+const blocked = value => Array.isArray(value) && value.every(item => isRecord(item) && number(item.day) && string(item.start) && string(item.end))
+const shape = (value, fields) => isRecord(value) && Object.entries(fields).every(([key, test]) => optional(value[key], test))
+const validConstraints = value => shape(value, { sections, unavailable: blocked, earliest: string, latest: string, excludedInstructors: strings, lunch: item => shape(item, { enabled: boolean, start: string, end: string, minutes: number }), online: string })
+const validPrefs = value => shape(value, { density: string, time: string, freeDays: days, busyDays: days, zzOverlap: boolean, zzWithReg: boolean, commute: item => shape(item, { enabled: boolean, hours: number }), constraints: validConstraints })
+const validSchedule = value => shape(value, { scopeId: string, scheduled: item => recordOf(item, strings), prefs: validPrefs })
+
 function validEntries(entries) {
   if (!entries || typeof entries !== 'object' || Array.isArray(entries)) return false
   return Object.entries(entries).every(([key, value]) => {
@@ -23,9 +34,10 @@ function validEntries(entries) {
     if (key === 'utm_ttb_warning_seen') return value === '1'
     try {
       const data = JSON.parse(value)
-      if (key.endsWith('utm_schedule')) return isRecord(data) && (data.scheduled === undefined || isRecord(data.scheduled)) && (data.prefs === undefined || isRecord(data.prefs)) && (data.scopeId === undefined || typeof data.scopeId === 'string')
-      if (key.endsWith('utm_course_status')) return isRecord(data)
-      return Array.isArray(data)
+      if (key.endsWith('utm_schedule')) return validSchedule(data)
+      if (key.endsWith('utm_course_status')) return recordOf(data, value => number(value) && [0, 1, 2, 3].includes(value))
+      if (key.endsWith('utm_selected_programs')) return Array.isArray(data) && data.every(item => isRecord(item) && string(item.id) && optional(item.intention, boolean))
+      return strings(data)
     } catch { return false }
   })
 }
@@ -38,7 +50,7 @@ function hasUserData(storage) {
     try { data = JSON.parse(raw) } catch { return true }
     if (key.endsWith('utm_schedule')) {
       if (!isRecord(data) || (data.scheduled !== undefined && !isRecord(data.scheduled)) || (data.prefs !== undefined && !isRecord(data.prefs))) return true
-      if (differs(data.scheduled || {}, {}) || differs(data.prefs || {}, defaultPrefs)) return true
+      if (differs(data.scheduled || {}, {}) || differs(data.prefs || {}, defaultPrefs())) return true
       if (Object.entries(data).some(([name, value]) => !['scopeId', 'scheduled', 'prefs'].includes(name) && differs(value, undefined))) return true
     } else if (differs(data, Array.isArray(data) ? [] : {})) return true
   }
@@ -47,7 +59,18 @@ function hasUserData(storage) {
 
 async function transform(bytes, format) {
   const stream = new Blob([bytes]).stream().pipeThrough(format === 'compress' ? new CompressionStream('gzip') : new DecompressionStream('gzip'))
-  return new Uint8Array(await new Response(stream).arrayBuffer())
+  if (format === 'compress') return new Uint8Array(await new Response(stream).arrayBuffer())
+  const reader = stream.getReader()
+  const chunks = []
+  let size = 0
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    size += value.length
+    if (size > 16 * 1024 * 1024) { await reader.cancel(); throw new Error('Transfer is too large') }
+    chunks.push(value)
+  }
+  return new Uint8Array(await new Blob(chunks).arrayBuffer())
 }
 
 export async function encodeTransfer(storage) {
@@ -99,5 +122,5 @@ export async function receiveTransfer(storage, location, history) {
   if (encoded === null) return false
   url.searchParams.delete('data')
   history.replaceState(history.state, '', url.href)
-  try { return await importTransfer(storage, encoded) } catch { return false }
+  return importTransfer(typeof storage === 'function' ? storage() : storage, encoded)
 }

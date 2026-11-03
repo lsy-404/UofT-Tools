@@ -1,5 +1,7 @@
 import { CAMPUSES, VALID_COURSE, courseCampus, progress, combination, degreeConfiguration } from './lib/campuses.js'
 import { reactive, computed, watch } from 'vue'
+import { defaultConstraints, defaultPrefs } from '../../storage-transfer.js'
+export { defaultConstraints } from '../../storage-transfer.js'
 import { buildCourseList, computeSuggestions } from './lib/courses.js'
 import {
   buildScopes, rankedSchedules,
@@ -15,11 +17,6 @@ const LS_EXTRA = 'utm_extra_courses'
 const LS_SCHEDULE = 'utm_schedule'
 const profileKey = key => state.campus === 'utm' ? key : `${state.campus}_${key}`
 const LS_TTB_WARNING = 'utm_ttb_warning_seen'
-export const defaultConstraints = () => ({
-  sections: {}, unavailable: [], earliest: '', latest: '', excludedInstructors: [],
-  lunch: { enabled: false, start: '11:00', end: '14:00', minutes: 60 }, online: 'any',
-})
-const defaultPrefs = () => ({ density: 'any', time: 'any', freeDays: [], busyDays: [], zzOverlap: true, zzWithReg: false, commute: { enabled: true, hours: 1 }, constraints: defaultConstraints() })
 
 function restoredPrefs(saved = {}) {
   const defaults = defaultPrefs()
