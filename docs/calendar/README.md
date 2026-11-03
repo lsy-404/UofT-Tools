@@ -2,16 +2,16 @@
 
 ## Overview
 
-The Academic Calendar Feeds tool provides automatic, daily-updated calendar subscriptions for all three University of Toronto campuses:
+The Academic Calendar Feeds tool provides automatically updated calendar subscriptions for all three University of Toronto campuses:
 - **St. George (ArtsCI)** — UTSG
 - **Mississauga** — UTM  
 - **Scarborough** — UTSC
 
-Subscribe to webcal feeds and get important academic dates directly in your calendar app, with automatic daily updates.
+Subscribe to webcal feeds and get important academic dates directly in your calendar app, with automatic updates.
 
 ## Features
 
-✅ **Auto-Updates** — Calendar feeds update automatically every 24 hours  
+✅ **Auto-Updates** — Calendar data is refreshed weekly<br>
 ✅ **Multi-Campus** — Support for all three UofT campuses  
 ✅ **Easy Integration** — Works with Google Calendar, Apple Calendar, Outlook, and more  
 ✅ **No Manual Tracking** — Forget about checking the registrar page  
@@ -26,12 +26,12 @@ Subscribe to webcal feeds and get important academic dates directly in your cale
 
 ## How It Works
 
-Every 24 hours, a GitHub Actions job:
+Each week, a GitHub Actions job:
 
 1. **Scrapes Official Registrar Pages** — Fetches academic dates from each campus registrar
 2. **Extracts Event Data** — Parses HTML/widgets to extract important dates
 3. **Converts to iCalendar Format** — Generates valid ICS (iCalendar) files
-4. **Publishes Feed** — Uploads to this repository and serves via Cloudflare
+4. **Updates Data** — Commits the feeds to this repository for publication through Tiny Projects
 
 Calendar applications that support CalDAV/webcal automatically pull updates from the published URLs.
 
@@ -40,8 +40,8 @@ Calendar applications that support CalDAV/webcal automatically pull updates from
 | Component | Technology |
 |-----------|-----------|
 | **Web Scraper** | Python + Playwright + BeautifulSoup |
-| **Scheduling** | GitHub Actions (daily) |
-| **Hosting** | Cloudflare Pages |
+| **Scheduling** | GitHub Actions (weekly) |
+| **Hosting** | Tiny Projects |
 | **Format** | iCalendar (ICS) |
 
 ## Supported Calendar Apps
@@ -54,7 +54,7 @@ Calendar applications that support CalDAV/webcal automatically pull updates from
 
 ## Updates & Changelog
 
-Calendar feeds are synchronized daily. Check the [GitHub repository](https://github.com/lsy-404/UofT-Tools) for release notes and updates.
+Calendar data is refreshed weekly. Check the [GitHub repository](https://github.com/lsy-404/UofT-Tools) for release notes and updates.
 
 ## Disclaimer
 

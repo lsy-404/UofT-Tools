@@ -17,11 +17,11 @@ Visit **[tiny.leisiyu.dev/p/uoft](https://tiny.leisiyu.dev/p/uoft)** to access a
 <details>
   <summary><strong>How to build & dev</strong></summary>
 
-- **Frontend**: Vue 3 + Vite multi-page app, isolated under `web/` (page entries + `web/src/`), deployed to Cloudflare (Workers static assets)
+- **Frontend**: Vue 3 + Vite SSG app, with sources under `web/`
 - **Backend**: Python web scrapers (Playwright + BeautifulSoup), organised by module under `scripts/{calendar,planner,common}/`, run on a schedule via GitHub Actions
-- **Data**: scraper-generated `*.ics` / planner JSON live in `data/` (separate from the web sources). Vite serves this directory in development and copies it into `dist/` during the build, preserving paths such as `/calendar/*.ics` and `/planner/data/*.json`
-- **Deployment**: `dist/` is the publish directory; `pnpm run deploy` builds + deploys with Wrangler
-- **Updates**: Automatic calendar sync every 24 hours
+- **Data**: scraper-generated `*.ics` / planner JSON live in `data/` (separate from the web sources). Vite serves this directory in development and copies it into `dist/` during the build, preserving paths such as `/p/uoft/calendar/*.ics` and `/p/uoft/planner/data/*.json`
+- **Deployment**: [Tiny Projects](https://github.com/lsy-404/tiny) builds this repository as a fixed-commit submodule and publishes `dist/` at `/p/uoft/`.
+- **Updates**: Calendar scrapers run weekly and planner scrapers run twice monthly; their data is published through Tiny.
 
 ### Layout
 
@@ -37,13 +37,12 @@ dist/       build output (gitignored): app assets and copied data/
 ```bash
 corepack pnpm@10.34.6 install --frozen-lockfile
 pnpm run dev                       # Vite dev server (web/ app)
-pnpm run build                     # vite build → dist/, including data/
+pnpm run build                     # vite-ssg build → dist/, including data/
 pnpm run preview                   # serve dist/ with data (full local test)
 pnpm run test                      # Vitest unit + component tests
 ```
 
-> Note: `pnpm run dev` serves the app only; the scraper data in `data/` is copied
-> in at build time, so use `pnpm run build && pnpm run preview` to test with live data.
+> Vite serves the checked-in scraper data from `data/` during development and copies it into `dist/` when building.
 
 </details>
 

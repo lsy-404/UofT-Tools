@@ -10,7 +10,7 @@ These are automatically-updated iCalendar (ICS) feeds for all three University o
 - Convocation dates
 - Holiday closures
 
-The feeds are scraped daily from the official registrar pages and updated automatically.
+The feeds are scraped weekly from the official registrar pages and updated automatically.
 
 ### Is this an official University of Toronto tool?
 **No.** This is an unofficial, student-built tool. It is **not** affiliated with, endorsed by, or supported by the University of Toronto.
@@ -18,7 +18,7 @@ The feeds are scraped daily from the official registrar pages and updated automa
 Always verify important dates on the official registrar websites for your campus.
 
 ### How often are the feeds updated?
-Feeds update **once every 24 hours** via automated GitHub Actions. Most calendar apps pull updates automatically; some may require a manual refresh.
+Feed data is refreshed **weekly** via automated GitHub Actions and published through Tiny Projects. Most calendar apps pull updates automatically; some may require a manual refresh.
 
 ### Which calendar apps are supported?
 Any calendar application that supports the webcal protocol or can import ICS files:
@@ -45,8 +45,8 @@ This approach allows us to capture dates from dynamic content (widgets, accordio
 
 ### Why webcal instead of HTTPS?
 **Webcal** is the standard protocol for calendar feeds and enables automatic updates. However, if your device doesn't support webcal, you can use the HTTPS URL instead:
-- Webcal: `webcal://uoft.leisiyu.dev/calendar/artsci.ics`
-- HTTPS: `https://uoft.leisiyu.dev/calendar/artsci.ics`
+- Webcal: `webcal://tiny.leisiyu.dev/p/uoft/calendar/artsci.ics`
+- HTTPS: `https://tiny.leisiyu.dev/p/uoft/calendar/artsci.ics`
 
 ### What if a date is wrong?
 The dates come directly from the official registrar pages. If a date appears incorrect:
@@ -90,7 +90,7 @@ You can add notes or change reminders, but:
 
 ### Can I share the calendar with others?
 Yes! Share the **webcal URL**, not your personal calendar:
-- Share: `webcal://uoft.leisiyu.dev/calendar/artsci.ics`
+- Share: `webcal://tiny.leisiyu.dev/p/uoft/calendar/artsci.ics`
 - They can add it to their own calendar app
 
 ---

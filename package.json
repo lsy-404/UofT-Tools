@@ -10,8 +10,7 @@
     "dev": "vite",
     "build": "vite-ssg build",
     "preview": "vite preview",
-    "test": "vitest run",
-    "deploy": "pnpm exec wrangler deploy"
+    "test": "vitest run"
   },
   "dependencies": {
     "@unhead/vue": "^2.1.17",
@@ -24,7 +23,6 @@
     "@vue/test-utils": "^2.4.6",
     "jsdom": "^25.0.1",
     "vite": "^6.0.7",
-    "vitest": "^2.1.8",
-    "wrangler": "^4.98.0"
+    "vitest": "^2.1.8"
   }
 }
