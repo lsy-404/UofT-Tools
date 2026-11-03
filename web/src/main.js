@@ -12,6 +12,6 @@ export const createApp = ViteSSG(App, {
   },
 }, async ({ isClient }) => {
   if (isClient) {
-    try { await receiveTransfer(window.localStorage, window.location, window.history) } catch { /* Storage may be unavailable. */ }
+    try { await receiveTransfer(() => window.localStorage, window.location, window.history) } catch { window.alert('Could not transfer your planner data. Please try again from the previous site.') }
   }
 })

@@ -17,7 +17,7 @@ const defaults = JSON.stringify({ scopeId: '20269', scheduled: {}, prefs: {
 
 describe('planner transfer', () => {
   it('round trips the complete allowlist with Unicode and excludes other keys', async () => {
-    const original = Object.fromEntries(TRANSFER_KEYS.map(key => [key, key === 'uoft_home_campus' ? 'stg' : key === 'utm_ttb_warning_seen' ? '1' : key.endsWith('utm_schedule') || key.endsWith('utm_course_status') ? JSON.stringify({ name: '多伦多 🐈' }) : JSON.stringify(['多伦多 🐈'])]))
+    const original = Object.fromEntries(TRANSFER_KEYS.map(key => [key, key === 'uoft_home_campus' ? 'stg' : key === 'utm_ttb_warning_seen' ? '1' : key.endsWith('utm_schedule') ? JSON.stringify({ scopeId: '多伦多 🐈' }) : key.endsWith('utm_course_status') ? JSON.stringify({ CSC108H1: 2 }) : key.endsWith('utm_selected_programs') ? JSON.stringify([{ id: '多伦多 🐈', intention: false }]) : JSON.stringify(['多伦多 🐈'])]))
     const source = storage({ ...original, unrelated: 'private' })
     const encoded = await encodeTransfer(source)
     expect(await decodeTransfer(encoded)).toEqual(original)
@@ -49,11 +49,38 @@ describe('planner transfer', () => {
     expect([...target.values]).toEqual([['utm_course_status', '{}'], ['utm_extra_courses', '[]']])
   })
 
+  it('reports storage failures after removing the transfer parameter', async () => {
+    const encoded = await encodeTransfer(storage({ utm_extra_courses: '["CSC108H1"]' }))
+    let clean
+    const history = { state: null, replaceState: (state, title, url) => { clean = url } }
+    await expect(receiveTransfer(() => { throw Error('storage unavailable') }, { href: 'https://example.com/p/uoft/?data=' + encoded + '&x=1' }, history)).rejects.toThrow('storage unavailable')
+    expect(clean).toBe('https://example.com/p/uoft/?x=1')
+  })
+
   it('removes the data parameter even when invalid, preserving other URL parts', async () => {
     let clean
     const history = { state: { a: 1 }, replaceState: (state, title, url) => { clean = url } }
-    expect(await receiveTransfer(storage(), { href: 'https://example.com/p/uoft/?data=invalid&x=1#section' }, history)).toBe(false)
+    await expect(receiveTransfer(storage(), { href: 'https://example.com/p/uoft/?data=invalid&x=1#section' }, history)).rejects.toThrow()
     expect(clean).toBe('https://example.com/p/uoft/?x=1#section')
+  })
+
+  it.each([
+    ['utm_selected_programs', '[null]'],
+    ['utm_course_status', '{"CSC108H1":"bad"}'],
+    ['utm_extra_courses', '[null]'],
+    ['utm_schedule', '{"scheduled":{"CSC108H1":"F"}}'],
+    ['utm_schedule', '{"prefs":{"freeDays":"x"}}'],
+    ['utm_schedule', '{"prefs":{"constraints":{"unavailable":[null]}}}'],
+  ])('rejects invalid stored shapes in %s', async (key, value) => {
+    await expect(encodeTransfer(storage({ [key]: value }))).rejects.toThrow()
+  })
+
+  it('rejects decompressed payloads over the size limit', async () => {
+    const bytes = new TextEncoder().encode('x'.repeat(16 * 1024 * 1024 + 1))
+    const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'))
+    const zipped = new Uint8Array(await new Response(stream).arrayBuffer())
+    const encoded = btoa(Array.from(zipped, byte => String.fromCharCode(byte)).join('')).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
+    await expect(decodeTransfer(encoded)).rejects.toThrow('too large')
   })
 
   it('rejects payloads containing keys outside the allowlist', async () => {
